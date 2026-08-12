@@ -1,0 +1,26 @@
+server:
+  port: 8080
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+greenops:
+  dry-run: ${GREENOPS_DRY_RUN:true}
+  slack:
+    webhook-url: ${SLACK_WEBHOOK_URL:}
+  aws:
+    region: ${AWS_REGION:us-east-1}
+  policy:
+    idle-cpu-threshold: ${GREENOPS_POLICY_IDLE_CPU_THRESHOLD:2.0}
+    idle-network-threshold-kbps: ${GREENOPS_POLICY_IDLE_NETWORK_THRESHOLD_KBPS:100.0}
+    required-tag-key: ${GREENOPS_POLICY_REQUIRED_TAG_KEY:Environment}
+    required-tag-value: ${GREENOPS_POLICY_REQUIRED_TAG_VALUE:dev}
+    autostop-tag-key: ${GREENOPS_POLICY_AUTOSTOP_TAG_KEY:AutoStop}
+    autostop-tag-value: ${GREENOPS_POLICY_AUTOSTOP_TAG_VALUE:true}
