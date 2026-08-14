@@ -2,6 +2,7 @@ package com.greenops.scrapper.service;
 
 import com.amazonaws.services.costexplorer.AWSCostExplorer;
 import com.amazonaws.services.costexplorer.AWSCostExplorerClientBuilder;
+import com.amazonaws.services.costexplorer.model.DateInterval;
 import com.amazonaws.services.costexplorer.model.DimensionValues;
 import com.amazonaws.services.costexplorer.model.Expression;
 import com.amazonaws.services.costexplorer.model.GetCostAndUsageRequest;
@@ -9,7 +10,6 @@ import com.amazonaws.services.costexplorer.model.GetCostAndUsageResult;
 import com.amazonaws.services.costexplorer.model.Granularity;
 import com.amazonaws.services.costexplorer.model.GroupDefinition;
 import com.amazonaws.services.costexplorer.model.ResultByTime;
-import com.amazonaws.services.costexplorer.model.TimePeriod;
 import com.greenops.scrapper.config.GreenOpsProperties;
 import com.greenops.scrapper.model.ResourceMetrics;
 import java.math.BigDecimal;
@@ -39,7 +39,7 @@ public class AwsCostExplorerRateProvider implements CostRateProvider {
                     .withRegion(properties.getAws().getRegion())
                     .build();
             GetCostAndUsageRequest request = new GetCostAndUsageRequest()
-                    .withTimePeriod(new TimePeriod()
+                    .withTimePeriod(new DateInterval()
                             .withStart(LocalDate.now().minusDays(1).format(DateTimeFormatter.ISO_DATE))
                             .withEnd(LocalDate.now().format(DateTimeFormatter.ISO_DATE)))
                     .withGranularity(Granularity.DAILY)
