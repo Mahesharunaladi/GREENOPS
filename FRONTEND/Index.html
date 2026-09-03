@@ -1,893 +1,210 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>GreenOps Cost-Optimizer — Idle infrastructure, found and fixed</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<meta charset="UTF-8">
+<title>GreenOps Cost‑Optimizer</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
   :root{
-    --bg:#0E1512;
-    --bg-panel:#131C17;
-    --bg-panel-2:#1A251F;
-    --text:#EAF0EA;
-    --text-muted:#8FA396;
-    --gold:#D4A853;
-    --gold-dim:#8A713A;
-    --teal:#5FC9A8;
-    --teal-dim:#2E4A40;
-    --line: rgba(234,240,234,0.09);
-    --line-strong: rgba(234,240,234,0.16);
+    --fg:#1e293b; --fg-muted:#64748b; --accent:#0284c7; --accent-hover:#0369a1;
+    --card-bg:#ffffff; --border:#e2e8f0; --bg-alt:#f8fafc;
   }
-  *{box-sizing:border-box; margin:0; padding:0;}
-  html{scroll-behavior:smooth;}
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
   body{
-    background:var(--bg);
-    color:var(--text);
-    font-family:'Inter', sans-serif;
-    font-size:16px;
-    line-height:1.55;
-    overflow-x:hidden;
+    font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:#fff; color:var(--fg); line-height:1.6;
   }
-  ::selection{ background:var(--gold); color:#0E1512; }
-
-  h1,h2,h3,.display{
-    font-family:'Space Grotesk', sans-serif;
-    font-weight:600;
-    letter-spacing:-0.01em;
-    color:var(--text);
-  }
-  .mono{
-    font-family:'JetBrains Mono', monospace;
-  }
-  .eyebrow{
-    font-family:'JetBrains Mono', monospace;
-    font-size:12px;
-    letter-spacing:0.16em;
-    text-transform:uppercase;
-    color:var(--teal);
-    display:flex;
-    align-items:center;
-    gap:10px;
-    margin-bottom:18px;
-  }
-  .eyebrow::before{
-    content:'';
-    width:22px; height:1px;
-    background:var(--teal);
-    display:inline-block;
-  }
-  .wrap{
-    max-width:1160px;
-    margin:0 auto;
-    padding:0 32px;
-  }
-  a{ color:inherit; text-decoration:none; }
-
-  /* background texture: faint topographic-like contour dots */
-  .bg-texture{
-    position:fixed; inset:0;
-    background-image:
-      radial-gradient(circle at 1px 1px, rgba(234,240,234,0.05) 1px, transparent 1px);
-    background-size:28px 28px;
-    pointer-events:none;
-    z-index:0;
-    mask-image: radial-gradient(ellipse 90% 70% at 50% 0%, black 40%, transparent 100%);
-  }
-
-  /* NAV */
-  nav{
-    position:fixed; top:0; left:0; right:0;
-    z-index:50;
-    backdrop-filter: blur(10px);
-    background:rgba(14,21,18,0.72);
-    border-bottom:1px solid var(--line);
-  }
-  nav .wrap{
-    display:flex; align-items:center; justify-content:space-between;
-    height:68px;
-  }
-  .logo{
-    display:flex; align-items:center; gap:10px;
-    font-family:'Space Grotesk', sans-serif;
-    font-weight:600;
-    font-size:16px;
-    letter-spacing:-0.01em;
-  }
-  .logo .dot{
-    width:9px; height:9px; border-radius:2px;
-    background:var(--gold);
-    box-shadow:0 0 12px var(--gold);
-    transform:rotate(45deg);
-  }
-  .nav-links{ display:flex; gap:36px; }
-  .nav-links a{
-    font-size:14px; color:var(--text-muted);
-    transition:color .2s;
-  }
-  .nav-links a:hover{ color:var(--text); }
-  .nav-cta{
-    font-size:13px;
-    font-family:'JetBrains Mono', monospace;
-    padding:9px 16px;
-    border:1px solid var(--line-strong);
-    border-radius:5px;
-    color:var(--text);
-    transition:border-color .2s, background .2s;
-  }
-  .nav-cta:hover{ border-color:var(--teal); background:rgba(95,201,168,0.08); }
-
-  /* HERO */
-  header.hero{
-    position:relative;
-    padding:150px 0 70px;
-    z-index:1;
-  }
-  .hero-grid{
-    display:grid;
-    grid-template-columns:1fr;
-    gap:40px;
-  }
-  .hero h1{
-    font-size:clamp(36px, 5vw, 60px);
-    line-height:1.06;
-    max-width:820px;
-  }
-  .hero h1 .accent{ color:var(--gold); }
-  .hero-sub{
-    margin-top:24px;
-    max-width:560px;
-    color:var(--text-muted);
-    font-size:17px;
-  }
-  .hero-actions{
-    margin-top:34px;
-    display:flex;
-    gap:14px;
-    flex-wrap:wrap;
-  }
+  a{color:var(--accent);text-decoration:none}
+  a:hover{text-decoration:underline}
+  code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:0.9em;background:#f1f5f9;padding:0.2em 0.4em;border-radius:4px}
+  .container{max-width:1100px;margin:0 auto;padding:0 1.5rem}
+  
+  h1,h2,h3{line-height:1.2;font-weight:700;color:#0f172a}
+  h1{font-size:clamp(2.5rem,5vw,3.5rem);margin-bottom:1rem}
+  h2{font-size:clamp(1.8rem,3vw,2.2rem);margin-bottom:1rem}
+  h3{font-size:1.2rem;margin-bottom:.5rem}
+  p{margin-bottom:1rem;color:var(--fg-muted)}
+  
   .btn{
-    font-size:14px;
-    padding:13px 22px;
-    border-radius:6px;
-    font-weight:500;
-    display:inline-flex;
-    align-items:center;
-    gap:8px;
-    transition:transform .18s ease, box-shadow .18s ease, background .18s ease;
+    display:inline-block;padding:.85rem 1.75rem;background:var(--accent);color:#fff;
+    border-radius:6px;font-weight:600;transition:background .2s, transform .1s;
   }
-  .btn-primary{
-    background:var(--gold);
-    color:#131A14;
-  }
-  .btn-primary:hover{ transform:translateY(-1px); box-shadow:0 6px 24px rgba(212,168,83,0.28); }
-  .btn-ghost{
-    border:1px solid var(--line-strong);
-    color:var(--text);
-  }
-  .btn-ghost:hover{ border-color:var(--teal); color:var(--teal); }
+  .btn:hover{background:var(--accent-hover);text-decoration:none;transform:translateY(-1px)}
 
-  /* 3D CANVAS AREA */
-  .model-stage{
-    position:relative;
-    margin-top:20px;
-    height:520px;
-    border-radius:14px;
-    border:1px solid var(--line);
-    background:
-      radial-gradient(ellipse at 50% 35%, rgba(95,201,168,0.09), transparent 60%),
-      linear-gradient(180deg, var(--bg-panel), #0F1613);
-    overflow:hidden;
+  #hero{
+    padding:6rem 0 5rem; text-align:center; background:linear-gradient(180deg, #f0f9ff 0%, #ffffff 100%);
+    border-bottom:1px solid var(--border);
   }
-  .model-stage canvas{ display:block; width:100%; height:100%; cursor:crosshair; }
-  .stage-hint{
-    position:absolute;
-    left:24px; bottom:20px;
-    font-family:'JetBrains Mono', monospace;
-    font-size:12px;
-    color:var(--text-muted);
-    display:flex; align-items:center; gap:8px;
-    opacity:0.85;
-    transition:opacity .3s;
-    pointer-events:none;
-  }
-  .stage-hint .pulse-dot{
-    width:6px; height:6px; border-radius:50%;
-    background:var(--teal);
-    animation:blink 1.6s ease-in-out infinite;
-  }
-  @keyframes blink{ 0%,100%{opacity:.3;} 50%{opacity:1;} }
-  .model-stage.is-active .stage-hint{ opacity:0; }
+  #hero p{font-size:1.25rem;max-width:700px;margin:0 auto 2rem}
 
-  .stage-badge{
-    position:absolute; top:20px; right:20px;
-    font-family:'JetBrains Mono', monospace;
-    font-size:11px;
-    letter-spacing:0.08em;
-    color:var(--text-muted);
-    border:1px solid var(--line);
-    padding:6px 10px;
-    border-radius:20px;
+  section{padding:5rem 0}
+  .section-title{text-align:center;margin-bottom:3.5rem}
+  .section-title h2{position:relative;display:inline-block}
+  .section-title h2::after{
+    content:'';position:absolute;bottom:-.5rem;left:50%;transform:translateX(-50%);
+    width:50px;height:4px;background:var(--accent);border-radius:2px
   }
 
-  #node-tooltip{
-    position:absolute;
-    top:0; left:0;
-    transform:translate(-50%, -130%);
-    background:var(--bg-panel-2);
-    border:1px solid var(--line-strong);
-    border-radius:8px;
-    padding:10px 14px;
-    min-width:180px;
-    pointer-events:none;
-    opacity:0;
-    transition:opacity .18s ease;
-    z-index:5;
-    box-shadow:0 10px 30px rgba(0,0,0,0.4);
+  .grid{display:grid;gap:2rem;grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
+  .card{
+    background:var(--card-bg);border:1px solid var(--border);border-radius:8px;
+    padding:2rem;transition:transform .2s,box-shadow .2s
   }
-  #node-tooltip.show{ opacity:1; }
-  #node-tooltip .tt-step{
-    font-family:'JetBrains Mono', monospace;
-    font-size:10px;
-    color:var(--gold);
-    letter-spacing:0.1em;
+  .card:hover{transform:translateY(-3px);box-shadow:0 10px 25px rgba(0,0,0,.05)}
+  .card .icon{width:40px;height:40px;margin-bottom:1rem;stroke:var(--accent)}
+
+  .diagram-container{
+    display:flex; flex-direction:column; gap:1.25rem; max-width:850px; margin:0 auto;
   }
-  #node-tooltip .tt-title{
-    font-family:'Space Grotesk', sans-serif;
-    font-size:15px;
-    margin-top:3px;
+  .diagram-node{
+    background:#fff; border:1px solid var(--border); border-left:4px solid var(--accent);
+    border-radius:8px; padding:1.5rem; transition:border-color .2s;
   }
-  #node-tooltip .tt-desc{
-    font-size:12px;
-    color:var(--text-muted);
-    margin-top:4px;
-    max-width:220px;
+  .diagram-node:hover{border-color:var(--accent)}
+  .diagram-node .meta{
+    display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;
+  }
+  .diagram-node .step-num{
+    font-size:0.8rem; font-weight:700; text-transform:uppercase; color:var(--accent); letter-spacing:0.5px;
+  }
+  .diagram-node .class-ref{
+    font-family:ui-monospace,SFMono-Regular,Consolas,monospace; font-size:0.8rem; color:var(--fg-muted); background:#f1f5f9; padding:2px 6px; border-radius:4px;
+  }
+  .diagram-connector{
+    width:2px; height:1.25rem; background:var(--accent); margin:-1.25rem auto -0.25rem 2.5rem; opacity:0.4;
   }
 
-  /* SECTIONS common */
-  section{ position:relative; z-index:1; padding:110px 0; }
-  section#workflow{ padding-top:90px; }
-  .section-head{
-    max-width:640px;
-    margin-bottom:56px;
-  }
-  .section-head h2{
-    font-size:clamp(28px, 3.4vw, 40px);
-    line-height:1.12;
-  }
-  .section-head p{
-    margin-top:16px;
-    color:var(--text-muted);
-    font-size:16px;
-    max-width:540px;
-  }
+  #how-it-works{background:var(--bg-alt); border-top:1px solid var(--border); border-bottom:1px solid var(--border)}
 
-  /* ABOUT */
-  #about{ border-top:1px solid var(--line); }
-  .about-grid{
-    display:grid;
-    grid-template-columns:1.1fr 0.9fr;
-    gap:64px;
-  }
-  .about-copy p{
-    color:var(--text-muted);
-    margin-bottom:16px;
-    font-size:15.5px;
-  }
-  .about-copy strong{ color:var(--text); font-weight:600;}
-  .feature-list{
-    display:flex; flex-direction:column; gap:0;
-  }
-  .feature-item{
-    padding:22px 0;
-    border-top:1px solid var(--line);
-    display:grid;
-    grid-template-columns:34px 1fr;
-    gap:16px;
-  }
-  .feature-item:last-child{ border-bottom:1px solid var(--line); }
-  .feature-icon{
-    width:34px; height:34px;
-    border-radius:8px;
-    background:var(--bg-panel-2);
-    border:1px solid var(--line);
-    display:flex; align-items:center; justify-content:center;
-    color:var(--teal);
-    font-family:'JetBrains Mono', monospace;
-    font-size:13px;
-  }
-  .feature-item h3{ font-size:16px; margin-bottom:4px; }
-  .feature-item p{ color:var(--text-muted); font-size:14px; }
-
-  /* WORKFLOW */
-  .workflow-list{
-    display:flex;
-    flex-direction:column;
-  }
-  .wf-card{
-    display:grid;
-    grid-template-columns:90px 1fr 1fr;
-    gap:28px;
-    align-items:start;
-    padding:28px 20px;
-    border-top:1px solid var(--line);
-    border-radius:10px;
-    transition:background .25s ease, border-color .25s ease, transform .25s ease;
-    cursor:pointer;
-  }
-  .wf-card:last-child{ border-bottom:1px solid var(--line); }
-  .wf-card:hover, .wf-card.active{
-    background:rgba(95,201,168,0.06);
-    border-color:var(--teal-dim);
-  }
-  .wf-card.active .wf-num{ color:var(--gold); }
-  .wf-num{
-    font-family:'JetBrains Mono', monospace;
-    font-size:26px;
-    color:var(--line-strong);
-    transition:color .25s;
-  }
-  .wf-title{ font-size:18px; font-weight:500; }
-  .wf-title span{
-    display:block;
-    font-family:'JetBrains Mono', monospace;
-    font-size:11px;
-    color:var(--teal);
-    letter-spacing:0.08em;
-    margin-bottom:6px;
-    text-transform:uppercase;
-  }
-  .wf-desc{ color:var(--text-muted); font-size:14.5px; }
-
-  /* STACK STRIP */
-  #stack{
-    padding:70px 0;
-    border-top:1px solid var(--line);
-    border-bottom:1px solid var(--line);
-  }
-  .stack-label{
-    font-family:'JetBrains Mono', monospace;
-    font-size:12px;
-    color:var(--text-muted);
-    letter-spacing:0.1em;
-    margin-bottom:22px;
-  }
-  .stack-badges{
-    display:flex; flex-wrap:wrap; gap:10px;
-  }
-  .badge{
-    font-family:'JetBrains Mono', monospace;
-    font-size:13px;
-    padding:9px 14px;
-    border:1px solid var(--line-strong);
-    border-radius:20px;
-    color:var(--text-muted);
-    transition:color .2s, border-color .2s;
-  }
-  .badge:hover{ color:var(--teal); border-color:var(--teal-dim); }
-
-  /* CTA / FOOTER */
-  #cta{ text-align:left; }
-  .cta-box{
-    border:1px solid var(--line-strong);
-    border-radius:16px;
-    padding:56px;
-    background:linear-gradient(160deg, var(--bg-panel), #0F1613);
-    display:grid;
-    grid-template-columns:1.2fr 1fr;
-    gap:40px;
-    align-items:center;
-  }
-  .cta-box h2{ font-size:clamp(26px,3vw,34px); line-height:1.15; }
-  .cta-box p{ color:var(--text-muted); margin-top:14px; max-width:420px; }
-  .code-block{
-    background:#0A0F0C;
-    border:1px solid var(--line);
-    border-radius:10px;
-    padding:18px 20px;
-    font-family:'JetBrains Mono', monospace;
-    font-size:13px;
-    color:var(--teal);
-    position:relative;
-  }
-  .code-block .cb-label{
-    color:var(--text-muted);
-    font-size:11px;
-    display:block;
-    margin-bottom:8px;
-  }
-  .copy-btn{
-    position:absolute; top:14px; right:14px;
-    font-family:'JetBrains Mono', monospace;
-    font-size:11px;
-    color:var(--text-muted);
-    border:1px solid var(--line);
-    padding:5px 9px;
-    border-radius:5px;
-    background:transparent;
-    cursor:pointer;
-    transition:color .2s, border-color .2s;
-  }
-  .copy-btn:hover{ color:var(--gold); border-color:var(--gold-dim); }
-
-  footer{
-    padding:40px 0 60px;
-    display:flex; justify-content:space-between; align-items:center;
-    color:var(--text-muted);
-    font-size:13px;
-  }
-  footer .logo{ font-size:14px; }
-
-  /* reveal on scroll */
-  .reveal{ opacity:0; transform:translateY(18px); transition:opacity .7s ease, transform .7s ease; }
-  .reveal.in{ opacity:1; transform:translateY(0); }
-
-  @media (max-width:860px){
-    .about-grid{ grid-template-columns:1fr; gap:40px; }
-    .wf-card{ grid-template-columns:50px 1fr; }
-    .wf-card .wf-desc{ grid-column:2 / 3; }
-    .cta-box{ grid-template-columns:1fr; padding:34px; }
-    .nav-links{ display:none; }
-    .model-stage{ height:380px; }
-  }
-  @media (prefers-reduced-motion: reduce){
-    html{ scroll-behavior:auto; }
-    .reveal{ transition:none; opacity:1; transform:none; }
-  }
+  footer{background:#fff;padding:2.5rem 0;text-align:center;color:var(--fg-muted);font-size:.9rem}
 </style>
 </head>
 <body>
 
-<div class="bg-texture"></div>
-
-<nav>
-  <div class="wrap">
-    <div class="logo"><span class="dot"></span>GreenOps</div>
-    <div class="nav-links">
-      <a href="#about">About</a>
-      <a href="#workflow">Workflow</a>
-      <a href="#stack">Stack</a>
-    </div>
-    <a href="#cta" class="nav-cta">terraform apply →</a>
+<section id="hero">
+  <div class="container">
+    <h1>GreenOps Cost‑Optimizer</h1>
+    <p>Automated cloud infrastructure scanner to identify idle EC2, RDS, EBS, and ELB resources, calculate estimates, and trigger remediations.</p>
+    <a class="btn" href="#workflow">Explore Workflow</a>
   </div>
-</nav>
+</section>
 
-<header class="hero">
-  <div class="wrap hero-grid">
-    <div>
-      <div class="eyebrow">GreenOps Cost-Optimizer</div>
-      <h1>Your cloud is paying rent<br>on rooms <span class="accent">nobody's in.</span></h1>
-      <p class="hero-sub">GreenOps scans your AWS estate every night, finds the idle instances and forgotten dev boxes quietly burning budget, and shuts them down — safely, with guardrails, and a paper trail for every decision.</p>
-      <div class="hero-actions">
-        <a href="#workflow" class="btn btn-primary">See the workflow</a>
-        <a href="#about" class="btn btn-ghost">Read the guardrails</a>
-      </div>
-    </div>
-
-    <div class="model-stage" id="modelStage">
-      <div class="stage-badge">pipeline.render()</div>
-      <div id="node-tooltip">
-        <div class="tt-step" id="ttStep">STEP 01</div>
-        <div class="tt-title" id="ttTitle">Scan</div>
-        <div class="tt-desc" id="ttDesc">EventBridge wakes the scanner.</div>
-      </div>
-      <div class="stage-hint"><span class="pulse-dot"></span>Hover the model to run a scan</div>
-    </div>
-  </div>
-</header>
-
-<section id="about">
-  <div class="wrap about-grid">
-    <div>
-      <div class="eyebrow reveal">Why this exists</div>
-      <h2 class="reveal">Idle infrastructure is invisible until the invoice arrives</h2>
-      <div class="about-copy reveal" style="margin-top:22px;">
-        <p>Nobody turns off a dev instance on a Friday. Nobody remembers the SageMaker notebook from a proof-of-concept three months ago. Multiply that across every team, every account, every region — and the waste stops being an anecdote and starts being a line item.</p>
-        <p><strong>GreenOps is not another dashboard.</strong> It's a nightly decision engine: it reads real utilization data from Cost Explorer, checks every candidate resource against your tagging policy, and only acts on what's provably idle and explicitly safe to touch.</p>
-        <p>Every action is logged before it happens, reported to Slack in plain language, and reversible. The goal isn't to automate fear — it's to make the boring, obvious cleanup happen automatically, so your team can spend review time on the decisions that actually need a human.</p>
-      </div>
-    </div>
-
-    <div class="feature-list">
-      <div class="feature-item reveal">
-        <div class="feature-icon">01</div>
-        <div>
-          <h3>Guardrails before actions</h3>
-          <p>Nothing is stopped or terminated unless it carries <code class="mono">AutoStop=true</code> and isn't tagged <code class="mono">Environment=prod</code>. Policy is checked, not assumed.</p>
-        </div>
-      </div>
-      <div class="feature-item reveal">
-        <div class="feature-icon">02</div>
-        <div>
-          <h3>Nightly, not manual</h3>
-          <p>An EventBridge rule triggers the scan at 01:00 UTC — no dashboard to remember to check, no ticket to file.</p>
-        </div>
-      </div>
-      <div class="feature-item reveal">
-        <div class="feature-icon">03</div>
-        <div>
-          <h3>Full audit trail</h3>
-          <p>Every scan, decision, and estimated saving is written to DynamoDB before Slack ever sees it.</p>
-        </div>
-      </div>
-    </div>
+<section id="about" class="container">
+  <div class="section-title"><h2>About Us</h2></div>
+  <div class="grid">
+    <article class="card">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+      <h3>Multi-Resource Detection</h3>
+      <p>Specialized scanners (<code>Ec2Scanner</code>, <code>RdsScanner</code>, <code>EbsScanner</code>, <code>ElbScanner</code>) continuously evaluate utilization metrics via native AWS SDK v2 integration.</p>
+    </article>
+    <article class="card">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      <h3>Policy &amp; Remediation Engine</h3>
+      <p>Flexible <code>IdlePolicy</code> rules evaluate candidates before passing them to the <code>RemediationEngine</code> for action enforcement or Slack reporting.</p>
+    </article>
+    <article class="card">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+      <h3>Serverless Architecture</h3>
+      <p>Packaged with Docker and deployed to AWS Lambda via Terraform, enabling zero-idle-cost execution driven by GitHub Actions CI/CD.</p>
+    </article>
   </div>
 </section>
 
 <section id="workflow">
-  <div class="wrap">
-    <div class="section-head reveal">
-      <div class="eyebrow">How a scan runs</div>
-      <h2>Six steps, one Lambda invocation</h2>
-      <p>The same sequence animating in the model above — hover a step here, or hover the model itself, to line them up.</p>
-    </div>
-
-    <div class="workflow-list" id="workflowList">
-      <div class="wf-card reveal" data-index="0">
-        <div class="wf-num">01</div>
-        <div class="wf-title"><span>EventBridge</span>Scan</div>
-        <div class="wf-desc">A scheduled rule fires nightly at 01:00 UTC, invoking the GreenOps Lambda across every tagged account and region.</div>
-      </div>
-      <div class="wf-card reveal" data-index="1">
-        <div class="wf-num">02</div>
-        <div class="wf-title"><span>IdleDetector</span>Detect</div>
-        <div class="wf-desc">Each resource's recent CPU and network metrics are checked against idle thresholds before it's ever considered a candidate.</div>
-      </div>
-      <div class="wf-card reveal" data-index="2">
-        <div class="wf-num">03</div>
-        <div class="wf-title"><span>Cost Explorer</span>Estimate</div>
-        <div class="wf-desc">Hourly pricing is pulled for the resource type and region, projecting the monthly savings if it's stopped.</div>
-      </div>
-      <div class="wf-card reveal" data-index="3">
-        <div class="wf-num">04</div>
-        <div class="wf-title"><span>Tag Validator</span>Guardrail check</div>
-        <div class="wf-desc">Only resources explicitly tagged safe to touch move forward — production and untagged resources are always skipped.</div>
-      </div>
-      <div class="wf-card reveal" data-index="4">
-        <div class="wf-num">05</div>
-        <div class="wf-title"><span>SlackNotifier</span>Notify</div>
-        <div class="wf-desc">A formatted summary — what was found, what was stopped, and what was saved — posts straight to the team channel.</div>
-      </div>
-      <div class="wf-card reveal" data-index="5">
-        <div class="wf-num">06</div>
-        <div class="wf-title"><span>DynamoDB</span>Audit</div>
-        <div class="wf-desc">Every decision is written to the audit log first, so nothing Slack reports can't be traced back and reviewed.</div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<section id="stack">
-  <div class="wrap">
-    <div class="stack-label reveal">BUILT ON</div>
-    <div class="stack-badges reveal">
-      <span class="badge">AWS Lambda</span>
-      <span class="badge">EventBridge</span>
-      <span class="badge">Cost Explorer</span>
-      <span class="badge">Spring Boot / Java 17</span>
-      <span class="badge">Terraform</span>
-      <span class="badge">DynamoDB</span>
-      <span class="badge">CloudWatch</span>
-      <span class="badge">Slack Webhooks</span>
-      <span class="badge">GitHub Actions</span>
-    </div>
-  </div>
-</section>
-
-<section id="cta">
-  <div class="wrap">
-    <div class="cta-box reveal">
-      <div>
-        <h2>Stop paying for silence.</h2>
-        <p>Clone the module, drop in your Slack webhook and account IDs, and let the first scan run tonight.</p>
-        <div class="hero-actions" style="margin-top:24px;">
-          <a href="#workflow" class="btn btn-primary">Review the workflow again</a>
+  <div class="container">
+    <div class="section-title"><h2>Application Workflow</h2></div>
+    
+    <div class="diagram-container">
+      <div class="diagram-node">
+        <div class="meta">
+          <span class="step-num">Step 01: Invocation</span>
+          <span class="class-ref">GreenOpsHandler.java</span>
         </div>
+        <h3>Lambda Trigger &amp; Config Load</h3>
+        <p>AWS Lambda entry point initializes application configurations via <code>AppConfig</code> using environment variables or Systems Manager parameters.</p>
       </div>
-      <div class="code-block">
-        <span class="cb-label">// deploy the stack</span>
-        <button class="copy-btn" id="copyBtn">copy</button>
-        <div>$ terraform init</div>
-        <div>$ terraform apply -auto-approve</div>
+      <div class="diagram-connector"></div>
+
+      <div class="diagram-node">
+        <div class="meta">
+          <span class="step-num">Step 02: Resource Discovery</span>
+          <span class="class-ref">ResourceScanner implementations</span>
+        </div>
+        <h3>Target Resource Scanning</h3>
+        <p>Execution spreads across scanner instances leveraging <code>AwsClients</code> to fetch active EC2, RDS, EBS, and ELB resource instances.</p>
       </div>
+      <div class="diagram-connector"></div>
+
+      <div class="diagram-node">
+        <div class="meta">
+          <span class="step-num">Step 03: Policy Evaluation</span>
+          <span class="class-ref">DefaultIdlePolicy.java</span>
+        </div>
+        <h3>Idle Candidate Filtering</h3>
+        <p>Discovered resources are processed through policy rules configured in <code>application.yml</code> to identify non-utilized capacity.</p>
+      </div>
+      <div class="diagram-connector"></div>
+
+      <div class="diagram-node">
+        <div class="meta">
+          <span class="step-num">Step 04: Financial Assessment</span>
+          <span class="class-ref">PricingCostEstimator.java</span>
+        </div>
+        <h3>Savings Projection</h3>
+        <p>Identified idle candidates are passed to <code>CostEstimator</code> to calculate projected monthly and annualized cost reductions.</p>
+      </div>
+      <div class="diagram-connector"></div>
+
+      <div class="diagram-node">
+        <div class="meta">
+          <span class="step-num">Step 05: Action &amp; Reporting</span>
+          <span class="class-ref">RemediationEngine &amp; SlackNotifier</span>
+        </div>
+        <h3>Remediation &amp; Notification</h3>
+        <p>The <code>ActionExecutor</code> handles optional resource state changes, while <code>SlackNotifier</code> constructs structured block updates to report back to your team.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="how-it-works">
+  <div class="container">
+    <div class="section-title"><h2>How It Works</h2></div>
+    <div class="grid">
+      <article class="card">
+        <h3>1. Lambda Entry Point</h3>
+        <p><code>GreenOpsHandler</code> serves as the main AWS Lambda interface, handling incoming execution events and routing workflow contexts.</p>
+      </article>
+      <article class="card">
+        <h3>2. AWS SDK v2 Integration</h3>
+        <p><code>AwsClients</code> acts as a centralized factory, issuing thread-safe AWS SDK v2 clients optimized for serverless execution runtimes.</p>
+      </article>
+      <article class="card">
+        <h3>3. Pluggable Resource Scanners</h3>
+        <p>Modular scanners implement the core <code>ResourceScanner</code> interface, enabling simple extension to support new AWS service types.</p>
+      </article>
+      <article class="card">
+        <h3>4. Modular Idle Policies</h3>
+        <p>Evaluation thresholds are abstracted into <code>IdlePolicy</code> implementations, separating utilization business logic from data collection.</p>
+      </article>
+      <article class="card">
+        <h3>5. Containerized Build</h3>
+        <p>The Java project compiles via Maven into a runtime container image defined in <code>Dockerfile</code> for consistent Lambda container deployments.</p>
+      </article>
+      <article class="card">
+        <h3>6. Terraform Infrastructure</h3>
+        <p>Infrastructure resources (IAM roles, Lambda configuration, schedules) are managed as code in the <code>terraform/</code> directory and deployed via <code>.github/workflows/deploy.yml</code>.</p>
+      </article>
     </div>
   </div>
 </section>
 
 <footer>
-  <div class="wrap" style="display:flex; justify-content:space-between; width:100%;">
-    <div class="logo"><span class="dot" style="width:7px;height:7px;"></span>GreenOps</div>
-    <div>Idle infrastructure, found and fixed.</div>
+  <div class="container">
+    <p>GreenOps Cost‑Optimizer &copy; 2026 • Powered by Java 17, AWS Lambda &amp; Terraform</p>
   </div>
 </footer>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script>
-/* ---------- scroll reveal ---------- */
-const revealEls = document.querySelectorAll('.reveal');
-const io = new IntersectionObserver((entries)=>{
-  entries.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); } });
-}, { threshold:0.15 });
-revealEls.forEach(el=>io.observe(el));
-
-/* ---------- copy button ---------- */
-document.getElementById('copyBtn').addEventListener('click', ()=>{
-  navigator.clipboard.writeText('terraform init && terraform apply -auto-approve').then(()=>{
-    const b = document.getElementById('copyBtn');
-    b.textContent = 'copied';
-    setTimeout(()=> b.textContent = 'copy', 1400);
-  });
-});
-
-/* ---------- workflow step data (shared by 3D model + list) ---------- */
-const STEPS = [
-  { tag:'STEP 01', title:'Scan',            desc:'EventBridge fires the nightly trigger at 01:00 UTC.' },
-  { tag:'STEP 02', title:'Detect',          desc:'CPU and network metrics are checked against idle thresholds.' },
-  { tag:'STEP 03', title:'Estimate',        desc:'Cost Explorer prices the resource to project monthly savings.' },
-  { tag:'STEP 04', title:'Guardrail check', desc:'Tag policy is enforced — prod and untagged resources are skipped.' },
-  { tag:'STEP 05', title:'Notify',          desc:'A plain-language summary posts to the Slack channel.' },
-  { tag:'STEP 06', title:'Audit',           desc:'The decision is written to DynamoDB before anything else sees it.' },
-];
-
-/* ---------- three.js scene ---------- */
-const stage = document.getElementById('modelStage');
-const tooltip = document.getElementById('node-tooltip');
-const ttStep = document.getElementById('ttStep');
-const ttTitle = document.getElementById('ttTitle');
-const ttDesc = document.getElementById('ttDesc');
-const workflowCards = document.querySelectorAll('.wf-card');
-
-let width = stage.clientWidth, height = stage.clientHeight;
-
-const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(45, width/height, 0.1, 100);
-camera.position.set(0, 1.4, 6.4);
-
-const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-renderer.setSize(width, height);
-stage.appendChild(renderer.domElement);
-
-scene.add(new THREE.AmbientLight(0x5fc9a8, 0.6));
-const keyLight = new THREE.PointLight(0xd4a853, 1.2, 20);
-keyLight.position.set(3, 4, 4);
-scene.add(keyLight);
-const rimLight = new THREE.PointLight(0x5fc9a8, 0.8, 20);
-rimLight.position.set(-4, -2, -3);
-scene.add(rimLight);
-
-const group = new THREE.Group();
-scene.add(group);
-
-/* glow sprite helper (cheap additive-blend glow) */
-function makeGlowTexture(hex){
-  const c = document.createElement('canvas');
-  c.width = c.height = 128;
-  const ctx = c.getContext('2d');
-  const grad = ctx.createRadialGradient(64,64,0,64,64,64);
-  grad.addColorStop(0, hex + 'ff');
-  grad.addColorStop(0.35, hex + '77');
-  grad.addColorStop(1, hex + '00');
-  ctx.fillStyle = grad;
-  ctx.fillRect(0,0,128,128);
-  return new THREE.CanvasTexture(c);
-}
-const glowTexTeal = makeGlowTexture('#5fc9a8');
-const glowTexGold = makeGlowTexture('#d4a853');
-
-function makeGlowSprite(tex, scale){
-  const mat = new THREE.SpriteMaterial({ map:tex, transparent:true, blending:THREE.AdditiveBlending, depthWrite:false });
-  const s = new THREE.Sprite(mat);
-  s.scale.set(scale, scale, 1);
-  return s;
-}
-
-/* build node ring */
-const NODE_COUNT = STEPS.length;
-const RADIUS = 2.1;
-const nodePositions = [];
-for(let i=0;i<NODE_COUNT;i++){
-  const a = (i / NODE_COUNT) * Math.PI * 2;
-  const x = Math.cos(a) * RADIUS;
-  const z = Math.sin(a) * RADIUS;
-  const y = Math.sin(a * 2) * 0.35;
-  nodePositions.push(new THREE.Vector3(x, y, z));
-}
-const curve = new THREE.CatmullRomCurve3(nodePositions, true, 'catmullrom', 0.5);
-
-/* guide tube */
-const tubeGeo = new THREE.TubeGeometry(curve, 240, 0.014, 8, true);
-const tubeMat = new THREE.MeshBasicMaterial({ color:0x5fc9a8, transparent:true, opacity:0.28 });
-const tube = new THREE.Mesh(tubeGeo, tubeMat);
-group.add(tube);
-
-/* nodes */
-const nodeMeshes = [];
-const nodeGlows = [];
-const nodeCoreGeo = new THREE.SphereGeometry(0.085, 24, 24);
-for(let i=0;i<NODE_COUNT;i++){
-  const mat = new THREE.MeshStandardMaterial({ color:0xd4a853, emissive:0x3a2c10, roughness:0.35, metalness:0.2 });
-  const mesh = new THREE.Mesh(nodeCoreGeo, mat);
-  mesh.position.copy(nodePositions[i]);
-  mesh.userData.index = i;
-  group.add(mesh);
-  nodeMeshes.push(mesh);
-
-  const glow = makeGlowSprite(glowTexGold, 0.55);
-  glow.position.copy(nodePositions[i]);
-  glow.material.opacity = 0.5;
-  group.add(glow);
-  nodeGlows.push(glow);
-}
-
-/* traveling pulse */
-const pulse = makeGlowSprite(glowTexTeal, 0.5);
-pulse.material.opacity = 0;
-group.add(pulse);
-const pulseCore = new THREE.Mesh(
-  new THREE.SphereGeometry(0.05, 16, 16),
-  new THREE.MeshBasicMaterial({ color:0x5fc9a8, transparent:true, opacity:0 })
-);
-group.add(pulseCore);
-
-/* ambient particle field */
-const particleCount = 140;
-const particleGeo = new THREE.BufferGeometry();
-const particlePos = new Float32Array(particleCount * 3);
-for(let i=0;i<particleCount;i++){
-  const r = 3.2 + Math.random()*2.4;
-  const a = Math.random()*Math.PI*2;
-  const h = (Math.random()-0.5)*3;
-  particlePos[i*3] = Math.cos(a)*r;
-  particlePos[i*3+1] = h;
-  particlePos[i*3+2] = Math.sin(a)*r;
-}
-particleGeo.setAttribute('position', new THREE.BufferAttribute(particlePos, 3));
-const particleMat = new THREE.PointsMaterial({ color:0x8fa396, size:0.02, transparent:true, opacity:0.4 });
-const particles = new THREE.Points(particleGeo, particleMat);
-scene.add(particles);
-
-/* ---------- interaction state ---------- */
-let canvasHovering = false;
-let hoveredNodeIndex = null;
-let t = 0;               // pulse position along curve [0,1)
-let cardForceIndex = null; // set when hovering a workflow list card
-const mouseNDC = new THREE.Vector2();
-const mouseTargetRot = { x:0, y:0 };
-const raycaster = new THREE.Raycaster();
-raycaster.params.Sprite = { threshold: 0.15 };
-
-renderer.domElement.addEventListener('pointerenter', ()=>{
-  canvasHovering = true;
-  stage.classList.add('is-active');
-});
-renderer.domElement.addEventListener('pointerleave', ()=>{
-  canvasHovering = false;
-  hoveredNodeIndex = null;
-  stage.classList.remove('is-active');
-  tooltip.classList.remove('show');
-});
-renderer.domElement.addEventListener('pointermove', (e)=>{
-  const rect = renderer.domElement.getBoundingClientRect();
-  const x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-  const y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-  mouseNDC.set(x, y);
-  mouseTargetRot.y = x * 0.35;
-  mouseTargetRot.x = y * 0.15;
-
-  raycaster.setFromCamera(mouseNDC, camera);
-  const hits = raycaster.intersectObjects(nodeMeshes);
-  hoveredNodeIndex = hits.length ? hits[0].object.userData.index : null;
-});
-
-/* workflow list cards hover -> drive the model too */
-workflowCards.forEach(card=>{
-  const idx = parseInt(card.dataset.index, 10);
-  card.addEventListener('mouseenter', ()=>{
-    cardForceIndex = idx;
-    canvasHovering = true;
-    stage.classList.add('is-active');
-  });
-  card.addEventListener('mouseleave', ()=>{
-    cardForceIndex = null;
-  });
-});
-
-function setActiveCard(idx){
-  workflowCards.forEach(c=>{
-    c.classList.toggle('active', parseInt(c.dataset.index,10) === idx);
-  });
-}
-
-function updateTooltip(idx, worldPos){
-  const step = STEPS[idx];
-  ttStep.textContent = step.tag;
-  ttTitle.textContent = step.title;
-  ttDesc.textContent = step.desc;
-
-  const projected = worldPos.clone().project(camera);
-  const rect = stage.getBoundingClientRect();
-  const px = (projected.x * 0.5 + 0.5) * rect.width;
-  const py = (-projected.y * 0.5 + 0.5) * rect.height;
-  tooltip.style.left = px + 'px';
-  tooltip.style.top = py + 'px';
-  tooltip.classList.add('show');
-}
-
-/* ---------- animation loop ---------- */
-const clock = new THREE.Clock();
-function animate(){
-  requestAnimationFrame(animate);
-  const dt = Math.min(clock.getDelta(), 0.05);
-
-  // gentle ambient autorotation always
-  group.rotation.y += dt * 0.08;
-
-  // parallax toward mouse
-  camera.position.x += (mouseTargetRot.y * 1.6 - camera.position.x) * 0.04;
-  camera.position.y += (1.4 - mouseTargetRot.x * 1.4 - camera.position.y) * 0.04;
-  camera.lookAt(0,0,0);
-
-  const effectiveIndex = cardForceIndex !== null ? cardForceIndex : hoveredNodeIndex;
-
-  if(canvasHovering || cardForceIndex !== null){
-    if(effectiveIndex !== null){
-      // snap/ease pulse toward the specifically hovered node
-      const targetT = effectiveIndex / NODE_COUNT;
-      let diff = targetT - t;
-      diff = ((diff + 1.5) % 1) - 0.5;
-      t += diff * 0.15;
-    } else {
-      // free-running playback of the whole pipeline
-      t += dt * 0.12;
-    }
-    t = (t % 1 + 1) % 1;
-
-    const pos = curve.getPointAt(t);
-    pulse.position.copy(pos);
-    pulseCore.position.copy(pos);
-    pulse.material.opacity += (0.9 - pulse.material.opacity) * 0.15;
-    pulseCore.material.opacity += (1 - pulseCore.material.opacity) * 0.15;
-
-    const activeIdx = effectiveIndex !== null ? effectiveIndex : Math.floor(t * NODE_COUNT) % NODE_COUNT;
-    nodeMeshes.forEach((m,i)=>{
-      const active = i === activeIdx;
-      const targetScale = active ? 1.6 : 1;
-      m.scale.lerp(new THREE.Vector3(targetScale,targetScale,targetScale), 0.15);
-      m.material.emissive.setHex(active ? 0x5fc9a8 : 0x3a2c10);
-      nodeGlows[i].material.opacity += ((active ? 0.95 : 0.35) - nodeGlows[i].material.opacity) * 0.15;
-    });
-
-    const worldPos = pos.clone().applyMatrix4(group.matrixWorld);
-    updateTooltip(activeIdx, worldPos);
-    setActiveCard(activeIdx);
-  } else {
-    pulse.material.opacity += (0 - pulse.material.opacity) * 0.1;
-    pulseCore.material.opacity += (0 - pulseCore.material.opacity) * 0.1;
-    nodeMeshes.forEach((m,i)=>{
-      m.scale.lerp(new THREE.Vector3(1,1,1), 0.08);
-      m.material.emissive.setHex(0x3a2c10);
-      nodeGlows[i].material.opacity += (0.35 - nodeGlows[i].material.opacity) * 0.08;
-    });
-    tooltip.classList.remove('show');
-    setActiveCard(-1);
-  }
-
-  particles.rotation.y += dt * 0.01;
-
-  renderer.render(scene, camera);
-}
-animate();
-
-/* resize */
-window.addEventListener('resize', ()=>{
-  width = stage.clientWidth; height = stage.clientHeight;
-  camera.aspect = width/height;
-  camera.updateProjectionMatrix();
-  renderer.setSize(width, height);
-});
-</script>
 </body>
 </html>
