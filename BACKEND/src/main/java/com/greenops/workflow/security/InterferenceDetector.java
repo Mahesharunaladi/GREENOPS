@@ -13,24 +13,6 @@ import java.util.Optional;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
 
-/**
- * Detects third-party interference, token tampering, and automation indicators from identity
- * telemetry.
- *
- * <p>The detector compares an incoming telemetry event against an active session record supplied by
- * a persistence adapter. In production, that adapter should read the active session state from Redis
- * or DynamoDB using the hashed session token emitted by {@code TelemetryIngestor}. This keeps the
- * detection policy independent from storage details while still supporting low-latency session
- * revocation workflows.
- *
- * <p>The current rules cover device fingerprint drift, TLS JA3 inconsistencies against the claimed
- * browser family, and sudden API call frequency spikes that often indicate rogue proxies or bot
- * automation. Reasons are additive and the returned level is the highest severity observed.
- *
- * <p><strong>Thread safety:</strong> this Spring component is stateless. All mutable collections are
- * method-local, collaborators are immutable references, and instances are safe as singleton beans or
- * AWS Lambda execution-environment singletons.
- */
 @Component
 public final class InterferenceDetector {
 
@@ -86,10 +68,13 @@ public final class InterferenceDetector {
         evaluateAutomationHints(event, findings);
 
         ThreatLevel threatLevel = findings.stream()
-                .map(Finding::threatLevel)
+                .map(finding -> Objects.requireNonNull(finding, "finding must not be null").threatLevel())
                 .max(InterferenceDetector::compareThreatLevel)
                 .orElse(ThreatLevel.LOW);
-        List<String> reasons = findings.stream().map(Finding::reason).distinct().toList();
+        List<String> reasons = findings.stream()
+                .map(finding -> Objects.requireNonNull(finding, "finding must not be null").reason())
+                .distinct()
+                .toList();
 
         return new SecurityThreatAssessment(
                 event.eventId(),
@@ -140,7 +125,8 @@ public final class InterferenceDetector {
             TelemetryEvent event, Optional<ActiveSessionRecord> activeSession, List<Finding> findings) {
         String claimedBrowser = normalize(event.deviceContext().browserFamily());
         String ja3BrowserHint = ja3BrowserHint(event.attributes())
-                .or(() -> activeSession.map(ActiveSessionRecord::tlsJa3BrowserFamily))
+                .or(() -> activeSession.map(session -> Objects.requireNonNull(
+                        session, "active session must not be null").tlsJa3BrowserFamily()))
                 .map(InterferenceDetector::normalize)
                 .orElse("unknown");
 
