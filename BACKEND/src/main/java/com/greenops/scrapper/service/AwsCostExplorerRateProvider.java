@@ -6,6 +6,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import org.springframework.context.annotation.Primary;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -23,6 +24,7 @@ import software.amazon.awssdk.services.costexplorer.model.GroupDefinitionType;
 import software.amazon.awssdk.services.costexplorer.model.ResultByTime;
 
 @Component
+@Primary
 public class AwsCostExplorerRateProvider implements CostRateProvider {
 
     private static final Logger log = LoggerFactory.getLogger(AwsCostExplorerRateProvider.class);
