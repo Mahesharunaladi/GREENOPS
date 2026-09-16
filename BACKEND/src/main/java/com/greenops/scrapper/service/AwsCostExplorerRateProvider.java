@@ -1,15 +1,5 @@
 package com.greenops.scrapper.service;
 
-import com.amazonaws.services.costexplorer.AWSCostExplorer;
-import com.amazonaws.services.costexplorer.AWSCostExplorerClientBuilder;
-import com.amazonaws.services.costexplorer.model.DateInterval;
-import com.amazonaws.services.costexplorer.model.DimensionValues;
-import com.amazonaws.services.costexplorer.model.Expression;
-import com.amazonaws.services.costexplorer.model.GetCostAndUsageRequest;
-import com.amazonaws.services.costexplorer.model.GetCostAndUsageResult;
-import com.amazonaws.services.costexplorer.model.Granularity;
-import com.amazonaws.services.costexplorer.model.GroupDefinition;
-import com.amazonaws.services.costexplorer.model.ResultByTime;
 import com.greenops.scrapper.config.GreenOpsProperties;
 import com.greenops.scrapper.model.ResourceMetrics;
 import java.math.BigDecimal;
@@ -19,6 +9,18 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.costexplorer.CostExplorerClient;
+import software.amazon.awssdk.services.costexplorer.model.DateInterval;
+import software.amazon.awssdk.services.costexplorer.model.Dimension;
+import software.amazon.awssdk.services.costexplorer.model.DimensionValues;
+import software.amazon.awssdk.services.costexplorer.model.Expression;
+import software.amazon.awssdk.services.costexplorer.model.GetCostAndUsageRequest;
+import software.amazon.awssdk.services.costexplorer.model.GetCostAndUsageResponse;
+import software.amazon.awssdk.services.costexplorer.model.Granularity;
+import software.amazon.awssdk.services.costexplorer.model.GroupDefinition;
+import software.amazon.awssdk.services.costexplorer.model.GroupDefinitionType;
+import software.amazon.awssdk.services.costexplorer.model.ResultByTime;
 
 @Component
 public class AwsCostExplorerRateProvider implements CostRateProvider {
@@ -34,22 +36,38 @@ public class AwsCostExplorerRateProvider implements CostRateProvider {
 
     @Override
     public double hourlyRate(ResourceMetrics metrics) {
-        try {
-            AWSCostExplorer client = AWSCostExplorerClientBuilder.standard()
-                    .withRegion(properties.getAws().getRegion())
+        try (CostExplorerClient client = CostExplorerClient.builder()
+                .region(Region.of(properties.getAws().getRegion()))
+                .build()) {
+            GetCostAndUsageRequest request = GetCostAndUsageRequest.builder()
+                    .timePeriod(DateInterval.builder()
+                            .start(LocalDate.now().minusDays(1).format(DateTimeFormatter.ISO_DATE))
+                            .end(LocalDate.now().format(DateTimeFormatter.ISO_DATE))
+                            .build())
+                    .granularity(Granularity.DAILY)
+                    .metrics("UnblendedCost")
+                    .groupBy(List.of(GroupDefinition.builder()
+                            .type(GroupDefinitionType.DIMENSION)
+                            .key("INSTANCE_TYPE")
+                            .build()))
+                    .filter(Expression.builder()
+                            .and(
+                                    Expression.builder()
+                                            .dimensions(DimensionValues.builder()
+                                                    .key(Dimension.REGION)
+                                                    .values(metrics.region())
+                                                    .build())
+                                            .build(),
+                                    Expression.builder()
+                                            .dimensions(DimensionValues.builder()
+                                                    .key(Dimension.INSTANCE_TYPE)
+                                                    .values(metrics.instanceType())
+                                                    .build())
+                                            .build())
+                            .build())
                     .build();
-            GetCostAndUsageRequest request = new GetCostAndUsageRequest()
-                    .withTimePeriod(new DateInterval()
-                            .withStart(LocalDate.now().minusDays(1).format(DateTimeFormatter.ISO_DATE))
-                            .withEnd(LocalDate.now().format(DateTimeFormatter.ISO_DATE)))
-                    .withGranularity(Granularity.DAILY)
-                    .withMetrics("UnblendedCost")
-                    .withGroupBy(List.of(new GroupDefinition().withType("DIMENSION").withKey("INSTANCE_TYPE")))
-                    .withFilter(new Expression().withAnd(
-                            new Expression().withDimensions(new DimensionValues().withKey("REGION").withValues(metrics.region())),
-                            new Expression().withDimensions(new DimensionValues().withKey("INSTANCE_TYPE").withValues(metrics.instanceType()))));
-            GetCostAndUsageResult result = client.getCostAndUsage(request);
-            double dailyCost = result.getResultsByTime().stream()
+            GetCostAndUsageResponse result = client.getCostAndUsage(request);
+            double dailyCost = result.resultsByTime().stream()
                     .mapToDouble(this::extractDailyCost)
                     .sum();
             if (dailyCost > 0.0) {
@@ -62,9 +80,9 @@ public class AwsCostExplorerRateProvider implements CostRateProvider {
     }
 
     private double extractDailyCost(ResultByTime result) {
-        String amount = result.getTotal() == null || result.getTotal().get("UnblendedCost") == null
+        String amount = result.total() == null || result.total().get("UnblendedCost") == null
                 ? "0"
-                : result.getTotal().get("UnblendedCost").getAmount();
+                : result.total().get("UnblendedCost").amount();
         return new BigDecimal(amount).doubleValue();
     }
 }

@@ -23,6 +23,10 @@ import org.springframework.stereotype.Component;
 public final class DeviceContextExtractor {
 
     private static final Pattern JA3_PATTERN = Pattern.compile("^[a-fA-F0-9]{32}$");
+    private static final Pattern IPV4_LITERAL_PATTERN =
+            Pattern.compile("^(?:\\d{1,3}\\.){3}\\d{1,3}$");
+    private static final Pattern IPV6_LITERAL_PATTERN =
+            Pattern.compile("^[0-9a-fA-F:.%]+$");
     private static final Pattern MOBILE_PATTERN =
             Pattern.compile(".*(android|iphone|ipad|mobile|windows phone).*", Pattern.CASE_INSENSITIVE);
     private static final Pattern BOT_PATTERN =
@@ -37,13 +41,13 @@ public final class DeviceContextExtractor {
      * @return immutable device context for downstream identity verification and risk scoring
      */
     public TelemetryEvent.DeviceContext extract(String clientIp, String tlsJa3Fingerprint, String userAgent) {
-        String normalizedIp = normalizeRequired(clientIp, "clientIp");
+        IpAddressContext ipAddressContext = extractIpAddressContext(clientIp);
         String normalizedJa3 = normalizeJa3(tlsJa3Fingerprint);
         String normalizedUserAgent = normalizeOptional(userAgent);
         return new TelemetryEvent.DeviceContext(
-                normalizedIp,
-                ipVersion(normalizedIp),
-                ipScope(normalizedIp),
+                ipAddressContext.clientIp(),
+                ipAddressContext.version(),
+                ipAddressContext.scope(),
                 normalizedJa3,
                 deviceType(normalizedUserAgent),
                 operatingSystem(normalizedUserAgent),
@@ -58,7 +62,7 @@ public final class DeviceContextExtractor {
      * @return trimmed textual address
      */
     public String normalizeClientIp(String clientIp) {
-        return normalizeRequired(clientIp, "clientIp");
+        return extractIpAddressContext(clientIp).clientIp();
     }
 
     /**
@@ -104,23 +108,34 @@ public final class DeviceContextExtractor {
         return value.isBlank() ? "unknown" : "other";
     }
 
-    private String ipVersion(String clientIp) {
-        return clientIp.contains(":") ? "ipv6" : "ipv4";
-    }
-
-    private String ipScope(String clientIp) {
+    private IpAddressContext extractIpAddressContext(String clientIp) {
+        String normalizedIp = validateIpLiteral(normalizeRequired(clientIp, "clientIp"));
         try {
-            InetAddress address = InetAddress.getByName(clientIp);
+            InetAddress address = InetAddress.getByName(normalizedIp);
             if (address.isAnyLocalAddress() || address.isLoopbackAddress()) {
-                return "local";
+                return new IpAddressContext(normalizedIp, ipVersion(normalizedIp), "local");
             }
             if (address.isSiteLocalAddress() || address.isLinkLocalAddress()) {
-                return "private";
+                return new IpAddressContext(normalizedIp, ipVersion(normalizedIp), "private");
             }
-            return "public";
+            return new IpAddressContext(normalizedIp, ipVersion(normalizedIp), "public");
         } catch (UnknownHostException ex) {
             throw new IllegalArgumentException("clientIp must be a valid IP address", ex);
         }
+    }
+
+    private String validateIpLiteral(String clientIp) {
+        boolean possibleLiteral = clientIp.contains(":")
+                ? IPV6_LITERAL_PATTERN.matcher(clientIp).matches()
+                : IPV4_LITERAL_PATTERN.matcher(clientIp).matches();
+        if (!possibleLiteral) {
+            throw new IllegalArgumentException("clientIp must be an IPv4 or IPv6 literal");
+        }
+        return clientIp;
+    }
+
+    private String ipVersion(String clientIp) {
+        return clientIp.contains(":") ? "ipv6" : "ipv4";
     }
 
     private String deviceType(String userAgent) {
@@ -164,4 +179,6 @@ public final class DeviceContextExtractor {
     private String normalizeOptional(String value) {
         return Objects.toString(value, "").trim();
     }
+
+    private record IpAddressContext(String clientIp, String version, String scope) {}
 }
