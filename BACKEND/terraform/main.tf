@@ -54,7 +54,7 @@ policy_arn = aws_iam_policy.greenops_policy.arn
 }
 
 resource "aws_secretsmanager_secret" "slack_webhook_secret" {
-name = var.slack_webhook_secret_name
+name = "greenops-slack-webhook"
 }
 
 resource "aws_secretsmanager_secret_version" "slack_webhook_version" {
