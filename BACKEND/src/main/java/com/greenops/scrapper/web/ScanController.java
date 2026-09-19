@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/v1")
+@RequestMapping("/api/v1/scan")
 public class ScanController {
 
     private final ScanOrchestrator scanOrchestrator;
@@ -19,12 +19,12 @@ public class ScanController {
         this.scanOrchestrator = scanOrchestrator;
     }
 
-    @GetMapping("/scan")
+    @GetMapping
     public ResponseEntity<ScanResult> scan(@RequestParam(name = "dryRun", defaultValue = "true") boolean dryRun) {
         return ResponseEntity.ok(scanOrchestrator.runScan(dryRun));
     }
 
-    @PostMapping("/scan")
+    @PostMapping
     public ResponseEntity<ScanResult> scanPost(@RequestParam(name = "dryRun", defaultValue = "true") boolean dryRun) {
         return ResponseEntity.ok(scanOrchestrator.runScan(dryRun));
     }

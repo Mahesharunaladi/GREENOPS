@@ -2,7 +2,6 @@ package com.greenops.workflow.identity;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.greenops.workflow.telemetry.TelemetryEvent;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.LinkedHashMap;
@@ -124,7 +123,7 @@ public final class InferenceClient {
 
     private InferenceResponse localHeuristic(InferenceRequest request) {
         double keystrokeScore = request.keystrokeFeatures().stream()
-                .mapToDouble(Math::abs)
+            .mapToDouble(value -> Math.abs(value.doubleValue()))
                 .average()
                 .orElse(0.0d);
         double mouseScore = Math.max(
