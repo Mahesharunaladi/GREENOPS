@@ -32,6 +32,17 @@ public class SlackNotifier {
 
     public String postReport(ScanResult result) {
         String message = SlackReportFormatter.toSlackMarkdown(result);
+        return postMessage(message);
+    }
+
+    public String postWorkflowNotification(String message) {
+        if (message == null || message.isBlank()) {
+            return "";
+        }
+        return postMessage(message);
+    }
+
+    private String postMessage(String message) {
         String webhookUrl = properties.getSlack().getWebhookUrl();
         if (properties.isDryRun() || webhookUrl == null || webhookUrl.isBlank()) {
             log.info("Dry-run or missing webhook; Slack payload: {}", message);
