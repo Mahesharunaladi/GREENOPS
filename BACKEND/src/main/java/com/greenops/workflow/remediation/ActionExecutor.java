@@ -29,7 +29,10 @@ public final class ActionExecutor {
         Objects.requireNonNull(scanResult, "scanResult must not be null");
         List<ScanFinding> findings = scanResult.findings() == null ? List.of() : scanResult.findings();
         long matched = findings.size();
-        long applied = findings.stream().filter(ScanFinding::actionTaken).count();
+        long applied = findings.stream()
+            .filter(Objects::nonNull)
+            .filter(finding -> finding.actionTaken())
+            .count();
         return new ActionExecutionResult(
                 matched,
                 applied,

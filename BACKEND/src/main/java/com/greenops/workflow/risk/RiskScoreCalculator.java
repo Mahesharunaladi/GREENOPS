@@ -1,6 +1,5 @@
 package com.greenops.workflow.risk;
 
-import com.greenops.scrapper.model.ScanFinding;
 import com.greenops.scrapper.model.ScanResult;
 import com.greenops.workflow.identity.RiskEvaluationResult;
 import com.greenops.workflow.identity.RiskEvaluationResult.AgentDecision;
@@ -95,7 +94,9 @@ public final class RiskScoreCalculator {
         double savingsPressure = Math.min(1.0d, scanResult.totalEstimatedMonthlySavings() / 1000.0d);
         double unappliedActionPressure = scanResult.findings() == null
                 ? 0.0d
-                : scanResult.findings().stream().filter(finding -> !finding.actionTaken()).count()
+            : scanResult.findings().stream()
+                .filter(Objects::nonNull)
+                .filter(finding -> !finding.actionTaken()).count()
                         / (double) Math.max(1, scanResult.findings().size());
         double score = clamp100((idleRatio * 55.0d) + (savingsPressure * 30.0d) + (unappliedActionPressure * 15.0d));
         if (score > 0.0d) {
@@ -103,7 +104,8 @@ public final class RiskScoreCalculator {
         }
         if (scanResult.findings() != null) {
             scanResult.findings().stream()
-                    .map(ScanFinding::reason)
+                    .filter(Objects::nonNull)
+                    .map(finding -> finding.reason())
                     .filter(Objects::nonNull)
                     .filter(reason -> !reason.isBlank())
                     .limit(3)
