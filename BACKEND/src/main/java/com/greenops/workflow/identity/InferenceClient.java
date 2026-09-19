@@ -45,8 +45,8 @@ public final class InferenceClient {
 
     public InferenceClient(ObjectMapper objectMapper) {
         this(
-                null,
-                null,
+                BedrockRuntimeClient.create(),
+                SageMakerRuntimeClient.create(),
                 objectMapper,
                 getenv("GREENOPS_INFERENCE_PROVIDER"),
                 getenv("GREENOPS_BEDROCK_MODEL_ID"),
@@ -60,8 +60,8 @@ public final class InferenceClient {
             String provider,
             String bedrockModelId,
             String sageMakerEndpoint) {
-        this.bedrockRuntimeClient = bedrockRuntimeClient;
-        this.sageMakerRuntimeClient = sageMakerRuntimeClient;
+        this.bedrockRuntimeClient = Objects.requireNonNull(bedrockRuntimeClient, "bedrockRuntimeClient must not be null");
+        this.sageMakerRuntimeClient = Objects.requireNonNull(sageMakerRuntimeClient, "sageMakerRuntimeClient must not be null");
         this.objectMapper = Objects.requireNonNull(objectMapper, "objectMapper must not be null");
         this.provider = normalize(provider);
         this.bedrockModelId = normalizeIdentifier(bedrockModelId);
@@ -91,8 +91,7 @@ public final class InferenceClient {
 
     private InferenceResponse invokeBedrock(InferenceRequest request) throws IOException {
         String payload = objectMapper.writeValueAsString(request);
-        BedrockRuntimeClient client = bedrockRuntimeClient == null ? BedrockRuntimeClient.create() : bedrockRuntimeClient;
-        var response = client.invokeModel(InvokeModelRequest.builder()
+        var response = bedrockRuntimeClient.invokeModel(InvokeModelRequest.builder()
                 .modelId(bedrockModelId)
                 .contentType("application/json")
                 .accept("application/json")
@@ -103,9 +102,7 @@ public final class InferenceClient {
 
     private InferenceResponse invokeSageMaker(InferenceRequest request) throws IOException {
         String payload = objectMapper.writeValueAsString(request);
-        SageMakerRuntimeClient client =
-                sageMakerRuntimeClient == null ? SageMakerRuntimeClient.create() : sageMakerRuntimeClient;
-        var response = client.invokeEndpoint(InvokeEndpointRequest.builder()
+        var response = sageMakerRuntimeClient.invokeEndpoint(InvokeEndpointRequest.builder()
                 .endpointName(sageMakerEndpoint)
                 .contentType("application/json")
                 .accept("application/json")
