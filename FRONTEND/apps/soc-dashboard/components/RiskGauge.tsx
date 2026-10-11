@@ -1,10 +1,14 @@
-import type { RiskEvent } from "../../../packages/sdk/src/types/telemetry";
+import type { RiskEvent } from "@greenops/sdk";
 import type { ReactNode } from "react";
-import type { CSSProperties } from "react";
 import { Activity, ShieldAlert } from "lucide-react";
 
+const tierStyles = {
+  LOW: { label: "Low risk", badge: "bg-emerald-50 text-emerald-700", ring: "border-emerald-500", icon: "text-emerald-600" },
+  MEDIUM: { label: "Step-up active", badge: "bg-amber-50 text-amber-700", ring: "border-amber-500", icon: "text-amber-600" },
+  HIGH: { label: "Lockout executed", badge: "bg-rose-50 text-rose-700", ring: "border-rose-500", icon: "text-rose-600" }
+} as const;
+
 export function RiskGauge({ event }: { event: RiskEvent }): ReactNode {
-  const tierClass = event.tier.toLowerCase();
     const style = tierStyles[event.tier];
     return <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className="flex items-start justify-between gap-4">

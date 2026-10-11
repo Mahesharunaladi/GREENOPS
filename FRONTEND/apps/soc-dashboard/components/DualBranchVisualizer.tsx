@@ -1,5 +1,7 @@
-import type { RiskEvent } from "../../../packages/sdk/src/types/telemetry";
 import type { ReactNode } from "react";
+import type { RiskEvent } from "@greenops/sdk";
+import { Radar, RadarChart, PolarGrid, PolarAngleAxis, ResponsiveContainer, Tooltip } from "recharts";
+import { CheckCircle2, Fingerprint, MousePointer2 } from "lucide-react";
 
 export function DualBranchVisualizer({ event }: { event: RiskEvent }): ReactNode {
       const fingerprint = event.branches.fingerprint;
