@@ -14,6 +14,12 @@ export class WebSocketTransport implements TelemetryTransport {
 
   send(batch: TelemetryBatch): void {
     if (this.closed) return;
+    if (this.options.websocketUrl.length === 0) {
+      if (this.pending.length >= this.maxPending) this.pending.shift();
+      this.pending.push(batch);
+      this.flushBeacon();
+      return;
+    }
     if (this.socket?.readyState === WebSocket.OPEN) {
       this.socket.send(JSON.stringify(batch));
       return;

@@ -20,7 +20,7 @@ export function GreenopsProvider({ children }: { children: ReactNode }): ReactNo
     const client = new GreenopsClient({
       sessionId: crypto.randomUUID(),
       websocketUrl: process.env.NEXT_PUBLIC_TELEMETRY_WS_URL ?? "",
-      beaconUrl: process.env.NEXT_PUBLIC_TELEMETRY_BEACON_URL ?? "",
+      beaconUrl: process.env.NEXT_PUBLIC_TELEMETRY_BEACON_URL ?? "http://localhost:8080/api/v1/telemetry/beacon",
       sessionToken: process.env.NEXT_PUBLIC_TELEMETRY_SESSION_TOKEN
     });
     return () => client.destroy();
