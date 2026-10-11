@@ -21,6 +21,6 @@ export function RiskGauge({ event }: { event: RiskEvent }): ReactNode {
         </div>
         <div className="min-w-0"><ShieldAlert className={style.icon} size={19} /><p className="mt-2 font-medium text-slate-800">{event.tier === "LOW" ? "Identity signals align with baseline." : event.tier === "MEDIUM" ? "Additional verification is required." : "Session containment is in effect."}</p><p className="mt-2 text-sm text-slate-500">Moving variance <strong className="text-slate-700">{event.branches.variance.toFixed(3)}</strong></p></div>
       </div>
-      <div className="mt-6 grid grid-cols-3 gap-2 border-t border-slate-100 pt-4 text-xs"><span className="text-slate-500">Network <b className="ml-1 text-slate-800">{event.branches.network.toFixed(2)}</b></span><span className="text-slate-500">Biometric <b className="ml-1 text-slate-800">{event.branches.biometric.toFixed(2)}</b></span><span className="flex items-center justify-end gap-1 text-slate-500"><Activity size={13} className="text-emerald-600" /> Live</span></div>
+      <div className="mt-6 grid grid-cols-1 gap-2 border-t border-slate-100 pt-4 text-xs sm:grid-cols-3"><span className="text-slate-500">Network <b className="ml-1 text-slate-800">{event.branches.network.toFixed(2)}</b></span><span className="text-slate-500">Biometric <b className="ml-1 text-slate-800">{event.branches.biometric.toFixed(2)}</b></span><span className="flex items-center gap-1 text-slate-500 sm:justify-end"><Activity size={13} className="text-emerald-600" /> Live</span></div>
     </article>;
 }
