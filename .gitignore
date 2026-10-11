@@ -4,3 +4,5 @@ target/
 .DS_Store
 *.log
 .env
+node_modules/
+.next/

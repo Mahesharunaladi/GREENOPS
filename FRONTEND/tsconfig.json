@@ -1,0 +1,25 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["dom", "dom.iterable", "es2022"],
+    "strict": true,
+    "noImplicitAny": true,
+    "noUncheckedIndexedAccess": true,
+    "noEmit": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "jsx": "preserve",
+    "isolatedModules": true,
+    "esModuleInterop": true,
+    "allowJs": false,
+    "skipLibCheck": true,
+    "baseUrl": ".",
+    "paths": {
+      "@greenops/sdk/*": ["packages/sdk/src/*"],
+      "@greenops/sdk": ["packages/sdk/src/index.ts"],
+      "@/*": ["apps/soc-dashboard/*"]
+    }
+  },
+  "include": ["apps/**/*.ts", "apps/**/*.tsx", "packages/**/*.ts", "packages/**/*.tsx", ".next/types/**/*.ts"],
+  "exclude": ["node_modules"]
+}

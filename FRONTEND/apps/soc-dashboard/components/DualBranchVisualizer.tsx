@@ -1,0 +1,6 @@
+import type { RiskEvent } from "../../../packages/sdk/src/types/telemetry";
+import type { ReactNode } from "react";
+
+export function DualBranchVisualizer({ event }: { event: RiskEvent }): ReactNode {
+  return <article className="card"><div className="card-heading"><div><p className="eyebrow">DUAL-BRANCH AI ENGINE</p><h3>Signal explainability</h3></div><span className="badge green">ANALYZING</span></div><div className="branch"><div className="branch-title"><span className="branch-icon">A</span><div><strong>Transport context</strong><small>JA3 / JA4 fingerprint comparison</small></div><span className="signal" /></div><div className="fingerprints"><span><small>BASELINE JA3</small><code>7d9f…a81c</code></span><span><small>CURRENT JA3</small><code>7d9f…a81c</code></span><span><small>SCORE</small><b>{event.branches.network.toFixed(2)}</b></span></div></div><div className="branch"><div className="branch-title"><span className="branch-icon purple">B</span><div><strong>Biometric profiler</strong><small>LSTM autoencoder profile distance</small></div><span className="signal purple" /></div><div className="bars">{[event.branches.biometric, 0.34, 0.51, 0.29, 0.62, 0.45, 0.38].map((value, index) => <span key={index} style={{ height: `${Math.max(12, value * 100)}%` }} />)}</div></div></article>;
+}
