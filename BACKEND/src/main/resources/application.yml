@@ -13,6 +13,8 @@ management:
 
 greenops:
   dry-run: ${GREENOPS_DRY_RUN:true}
+  frontend:
+    origin: ${GREENOPS_FRONTEND_ORIGIN:http://localhost:3000}
   slack:
     webhook-url: ${SLACK_WEBHOOK_URL:}
   aws:
