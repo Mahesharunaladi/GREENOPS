@@ -4,7 +4,7 @@ export interface BackendScanFinding {
   reason: string;
   action: string;
   actionTaken: boolean;
-  savingsEstimate: { monthly: number; currency: string } | null;
+  savingsEstimate: { currency: string; hourlyRate: number; estimatedMonthlySavings: number } | null;
   tags: Record<string, string>;
 }
 

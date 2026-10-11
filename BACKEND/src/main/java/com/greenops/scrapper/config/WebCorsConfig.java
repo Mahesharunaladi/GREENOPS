@@ -11,7 +11,7 @@ public class WebCorsConfig implements WebMvcConfigurer {
 
     private final String frontendOrigin;
 
-    public WebCorsConfig(@Value("${greenops.frontend.origin:http://localhost:3000}") String frontendOrigin) {
+    public WebCorsConfig(@Value("${GREENOPS_FRONTEND_ORIGIN:http://localhost:3000}") String frontendOrigin) {
         this.frontendOrigin = frontendOrigin;
     }
 
