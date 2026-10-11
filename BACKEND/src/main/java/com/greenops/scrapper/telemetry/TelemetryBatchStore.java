@@ -29,12 +29,29 @@ public final class TelemetryBatchStore {
 
     public synchronized TelemetryStatus status() {
         StoredBatch latest = batches.peekLast();
-        return new TelemetryStatus(acceptedCount.get(), batches.size(), latest == null ? null : latest.receivedAt(), latest == null ? null : latest.batch().seqId());
+        TelemetryBatch batch = latest == null ? null : latest.batch();
+        return new TelemetryStatus(
+            acceptedCount.get(),
+            batches.size(),
+            latest == null ? null : latest.receivedAt(),
+            batch == null ? null : batch.seqId(),
+            batch == null ? 0.0d : batch.dwellMeanMs(),
+            batch == null ? 0.0d : batch.flightMeanMs(),
+            batch == null ? 0.0d : batch.mouseVelocityMean(),
+            batch == null ? 0.0d : batch.mouseCurvatureMean());
     }
 
     public record StoredBatch(TelemetryBatch batch, Instant receivedAt) {}
 
-    public record TelemetryStatus(long acceptedBatches, int retainedBatches, Instant latestReceivedAt, Long latestSequence) {}
+        public record TelemetryStatus(
+            long acceptedBatches,
+            int retainedBatches,
+            Instant latestReceivedAt,
+            Long latestSequence,
+            double latestDwellMeanMs,
+            double latestFlightMeanMs,
+            double latestMouseVelocityMean,
+            double latestMouseCurvatureMean) {}
 
     public record TelemetryBatch(
             long seqId,

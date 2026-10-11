@@ -21,7 +21,15 @@ export interface BackendScanResult {
 export interface BackendSnapshot {
   scan: BackendScanResult | null;
   auditCount: number;
-  telemetry: { acceptedBatches: number; retainedBatches: number; latestSequence: number | null };
+  telemetry: {
+    acceptedBatches: number;
+    retainedBatches: number;
+    latestSequence: number | null;
+    latestDwellMeanMs: number;
+    latestFlightMeanMs: number;
+    latestMouseVelocityMean: number;
+    latestMouseCurvatureMean: number;
+  };
   connected: boolean;
   loading: boolean;
   error: string | null;
@@ -44,7 +52,7 @@ export const getBackendSnapshot = async (signal: AbortSignal): Promise<Pick<Back
   const [scan, audits, telemetry] = await Promise.all([
     requestJson<BackendScanResult>("/api/v1/scan?dryRun=true", signal),
     requestJson<readonly BackendScanResult[]>("/api/v1/audits", signal),
-    requestJson<{ acceptedBatches: number; retainedBatches: number; latestSequence: number | null }>("/api/v1/telemetry/status", signal)
+    requestJson<BackendSnapshot["telemetry"]>("/api/v1/telemetry/status", signal)
   ]);
   return { scan, auditCount: audits.length, telemetry };
 };
