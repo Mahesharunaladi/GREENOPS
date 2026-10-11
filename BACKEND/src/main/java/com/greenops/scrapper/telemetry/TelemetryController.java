@@ -1,5 +1,7 @@
 package com.greenops.scrapper.telemetry;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.util.ArrayList;
 import java.util.List;
@@ -18,13 +20,21 @@ import org.springframework.web.bind.annotation.RestController;
 public final class TelemetryController {
 
     private final TelemetryBatchStore store;
+    private final ObjectMapper objectMapper;
 
-    public TelemetryController(TelemetryBatchStore store) {
+    public TelemetryController(TelemetryBatchStore store, ObjectMapper objectMapper) {
         this.store = store;
+        this.objectMapper = objectMapper;
     }
 
     @PostMapping({"", "/beacon"})
-    public ResponseEntity<IngestResponse> ingest(@RequestBody JsonNode payload) {
+    public ResponseEntity<IngestResponse> ingest(@RequestBody String rawPayload) {
+        final JsonNode payload;
+        try {
+            payload = objectMapper.readTree(rawPayload);
+        } catch (JsonProcessingException ex) {
+            throw new IllegalArgumentException("telemetry payload must be valid JSON", ex);
+        }
         List<JsonNode> entries = payload != null && payload.isArray() ? iterable(payload) : List.of(payload);
         int accepted = 0;
         for (JsonNode entry : entries) {
