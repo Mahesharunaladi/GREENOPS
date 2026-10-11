@@ -5,8 +5,8 @@ describe("KeystrokeHarvester privacy", () => {
   it("does not expose raw keys in its feature output", () => {
     const harvester = new KeystrokeHarvester();
     harvester.start();
-    window.dispatchEvent(new KeyboardEvent("keydown", { key: "a" }));
-    window.dispatchEvent(new KeyboardEvent("keyup", { key: "a" }));
+    window.dispatchEvent(new KeyboardEvent("keydown", { code: "KeyA", key: "a" }));
+    window.dispatchEvent(new KeyboardEvent("keyup", { code: "KeyA", key: "a" }));
     const [feature] = harvester.drain();
     harvester.stop();
     expect(feature?.category).toBe("ALPHA");
