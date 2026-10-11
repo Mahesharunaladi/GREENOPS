@@ -63,7 +63,8 @@ public final class EpssRiskService {
             vulnerabilities.add(new PrioritizedVulnerability(
                     finding, epssScore, priorityScore, priorityFor(priorityScore)));
         }
-        vulnerabilities.sort(Comparator.comparingDouble(PrioritizedVulnerability::priorityScore).reversed());
+        vulnerabilities.sort(Comparator.comparingDouble(
+            (PrioritizedVulnerability vulnerability) -> vulnerability.priorityScore()).reversed());
         return new PrioritizedScan(scanRecord, vulnerabilities, Instant.now());
     }
 

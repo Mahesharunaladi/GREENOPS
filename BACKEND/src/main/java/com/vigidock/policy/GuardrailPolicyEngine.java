@@ -42,7 +42,7 @@ public final class GuardrailPolicyEngine {
                 case BLOCK_MINIMUM_SEVERITY -> evaluateSeverity(scanRecord, policy, violations);
             }
         }
-        boolean allowed = violations.stream().noneMatch(GuardrailEvaluation.Violation::blocking);
+        boolean allowed = violations.stream().noneMatch(violation -> violation.blocking());
         return new GuardrailEvaluation(allowed, violations, Instant.now());
     }
 

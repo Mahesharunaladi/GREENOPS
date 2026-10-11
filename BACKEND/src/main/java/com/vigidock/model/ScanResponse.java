@@ -2,7 +2,6 @@ package com.vigidock.model;
 
 import java.time.Instant;
 import java.util.List;
-import java.util.Objects;
 
 /**
  * API response for a Trivy scan enriched with EPSS-based real-world risk tags.

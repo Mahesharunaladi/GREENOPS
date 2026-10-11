@@ -13,11 +13,10 @@
     "esModuleInterop": true,
     "allowJs": false,
     "skipLibCheck": true,
-    "baseUrl": ".",
     "paths": {
-      "@greenops/sdk/*": ["packages/sdk/src/*"],
-      "@greenops/sdk": ["packages/sdk/src/index.ts"],
-      "@/*": ["apps/soc-dashboard/*"]
+      "@greenops/sdk/*": ["./packages/sdk/src/*"],
+      "@greenops/sdk": ["./packages/sdk/src/index.ts"],
+      "@/*": ["./apps/soc-dashboard/*"]
     }
   },
   "include": ["apps/**/*.ts", "apps/**/*.tsx", "packages/**/*.ts", "packages/**/*.tsx", ".next/types/**/*.ts"],

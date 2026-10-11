@@ -36,8 +36,10 @@ public final class TrivyScannerService {
                 .map(this::enrichFinding)
                 .sorted(Comparator
                         .comparingInt((VulnerabilityDetail detail) -> rank(detail.riskTag()))
-                        .thenComparing(VulnerabilityDetail::epssScore, Comparator.reverseOrder())
-                        .thenComparing(VulnerabilityDetail::cvssScore, Comparator.reverseOrder()))
+                        .thenComparing(
+                            (VulnerabilityDetail detail) -> detail.epssScore(), Comparator.reverseOrder())
+                        .thenComparing(
+                            (VulnerabilityDetail detail) -> detail.cvssScore(), Comparator.reverseOrder()))
                 .toList();
         return new ScanResponse(
                 scan.targetName(),
