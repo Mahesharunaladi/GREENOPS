@@ -6,7 +6,7 @@ const purgeBrowserState = async (): Promise<void> => {
   try { localStorage.clear(); sessionStorage.clear(); } catch { /* browser storage may be unavailable */ }
   if (typeof indexedDB !== "undefined" && typeof indexedDB.databases === "function") {
     const databases = await indexedDB.databases();
-    await Promise.all(databases.flatMap((database) => database.name ? [new Promise<void>((resolve) => { const request = indexedDB.deleteDatabase(database.name as string); request.oncomplete = request.onerror = request.onblocked = () => resolve(); })] : []));
+    await Promise.all(databases.flatMap((database) => database.name ? [new Promise<void>((resolve) => { const request = indexedDB.deleteDatabase(database.name as string); request.onsuccess = request.onerror = request.onblocked = () => resolve(); })] : []));
   }
 };
 
