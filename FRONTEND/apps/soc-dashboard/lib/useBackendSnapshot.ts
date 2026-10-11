@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { getBackendSnapshot, type BackendSnapshot } from "./greenopsApi";
 
-const initialState: BackendSnapshot = { scan: null, auditCount: 0, telemetry: { acceptedBatches: 0, retainedBatches: 0, latestSequence: null, latestDwellMeanMs: 0, latestFlightMeanMs: 0, latestMouseVelocityMean: 0, latestMouseCurvatureMean: 0 }, connected: false, loading: true, error: null };
+const initialState: BackendSnapshot = { scan: null, auditCount: 0, recentTelemetry: [], telemetry: { acceptedBatches: 0, retainedBatches: 0, latestSequence: null, latestDwellMeanMs: 0, latestFlightMeanMs: 0, latestMouseVelocityMean: 0, latestMouseCurvatureMean: 0 }, connected: false, loading: true, error: null };
 
 export function useBackendSnapshot(): BackendSnapshot {
   const [state, setState] = useState<BackendSnapshot>(initialState);

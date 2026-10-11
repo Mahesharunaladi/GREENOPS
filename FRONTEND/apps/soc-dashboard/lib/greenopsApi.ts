@@ -21,6 +21,7 @@ export interface BackendScanResult {
 export interface BackendSnapshot {
   scan: BackendScanResult | null;
   auditCount: number;
+  recentTelemetry: readonly TelemetryMetricPoint[];
   telemetry: {
     acceptedBatches: number;
     retainedBatches: number;
@@ -33,6 +34,17 @@ export interface BackendSnapshot {
   connected: boolean;
   loading: boolean;
   error: string | null;
+}
+
+export interface TelemetryMetricPoint {
+  sequence: number;
+  receivedAt: string;
+  keystrokeCount: number;
+  mouseFeatureCount: number;
+  dwellMeanMs: number;
+  flightMeanMs: number;
+  mouseVelocityMean: number;
+  mouseCurvatureMean: number;
 }
 
 const backendOrigin = (): string => process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:8080";
@@ -48,11 +60,12 @@ const requestJson = async <T>(path: string, signal: AbortSignal): Promise<T> => 
   return response.json() as Promise<T>;
 };
 
-export const getBackendSnapshot = async (signal: AbortSignal): Promise<Pick<BackendSnapshot, "scan" | "auditCount" | "telemetry">> => {
-  const [scan, audits, telemetry] = await Promise.all([
+export const getBackendSnapshot = async (signal: AbortSignal): Promise<Pick<BackendSnapshot, "scan" | "auditCount" | "telemetry" | "recentTelemetry">> => {
+  const [scan, audits, telemetry, recentTelemetry] = await Promise.all([
     requestJson<BackendScanResult>("/api/v1/scan?dryRun=true", signal),
     requestJson<readonly BackendScanResult[]>("/api/v1/audits", signal),
-    requestJson<BackendSnapshot["telemetry"]>("/api/v1/telemetry/status", signal)
+    requestJson<BackendSnapshot["telemetry"]>("/api/v1/telemetry/status", signal),
+    requestJson<readonly TelemetryMetricPoint[]>("/api/v1/telemetry/recent", signal)
   ]);
-  return { scan, auditCount: audits.length, telemetry };
+  return { scan, auditCount: audits.length, telemetry, recentTelemetry };
 };
