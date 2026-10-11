@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 /**
@@ -39,6 +40,7 @@ public final class EpssRiskService {
     private final ObjectMapper objectMapper;
     private final Map<String, CachedScore> cache = new ConcurrentHashMap<>();
 
+    @Autowired
     public EpssRiskService(ObjectMapper objectMapper) {
         this(HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build(), objectMapper);
     }
