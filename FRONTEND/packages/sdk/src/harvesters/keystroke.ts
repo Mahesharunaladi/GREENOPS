@@ -1,33 +1,32 @@
 import type { KeyCategory, KeystrokeFeature } from "../types/telemetry";
 
-const categoryFor = (key: string): KeyCategory => {
-  if (/^[a-z]$/i.test(key)) return "ALPHA";
-  if (/^[0-9]$/.test(key)) return "NUMERIC";
-  if (key === " ") return "SPACE";
-  if (key === "Backspace" || key === "Delete") return "DELETE";
-  if (key.startsWith("Arrow") || ["Tab", "Home", "End", "PageUp", "PageDown", "Enter"].includes(key)) return "NAV";
+const categoryFor = (code: string): KeyCategory => {
+  if (/^Key[A-Z]$/.test(code)) return "ALPHA";
+  if (/^Digit[0-9]$|^Numpad[0-9]$/.test(code)) return "NUMERIC";
+  if (code === "Space") return "SPACE";
+  if (["Backspace", "Delete"].includes(code)) return "DELETE";
+  if (/^Arrow/.test(code) || ["Tab", "Home", "End", "PageUp", "PageDown", "Enter"].includes(code)) return "NAV";
   return "MODIFIER";
 };
 
 export class KeystrokeHarvester {
-  private readonly pressed = new Map<KeyCategory, number>();
+  private readonly pressed = new Map<string, { category: KeyCategory; at: number }>();
   private lastRelease: number | null = null;
   private readonly features: KeystrokeFeature[] = [];
   private readonly onKeyDown = (event: KeyboardEvent): void => {
     const now = performance.now();
-    const category = categoryFor(event.key);
-    if (!this.pressed.has(category)) this.pressed.set(category, now);
+    const category = categoryFor(event.code);
+    if (!this.pressed.has(event.code)) this.pressed.set(event.code, { category, at: now });
   };
   private readonly onKeyUp = (event: KeyboardEvent): void => {
     const now = performance.now();
-    const category = categoryFor(event.key);
-    const press = this.pressed.get(category);
-    if (press === undefined) return;
-    this.pressed.delete(category);
+    const pressed = this.pressed.get(event.code);
+    if (pressed === undefined) return;
+    this.pressed.delete(event.code);
     this.features.push({
-      category,
-      dwellMs: Math.max(0, now - press),
-      flightMs: this.lastRelease === null ? null : Math.max(0, press - this.lastRelease)
+      category: pressed.category,
+      dwellMs: Math.max(0, now - pressed.at),
+      flightMs: this.lastRelease === null ? null : Math.max(0, pressed.at - this.lastRelease)
     });
     this.lastRelease = now;
   };
@@ -41,9 +40,10 @@ export class KeystrokeHarvester {
     window.removeEventListener("keydown", this.onKeyDown);
     window.removeEventListener("keyup", this.onKeyUp);
     this.pressed.clear();
+    this.lastRelease = null;
   }
 
-  drain(): KeystrokeFeature[] {
-    return this.features.splice(0, this.features.length);
+  drain(max = 128): KeystrokeFeature[] {
+    return this.features.splice(0, Math.max(0, max));
   }
 }
