@@ -42,11 +42,20 @@ public final class TelemetryBatchStore {
             String sessionId,
             Map<String, Object> environment,
             int keystrokeCount,
-            int mouseFeatureCount) {
+            int mouseFeatureCount,
+            double dwellMeanMs,
+            double flightMeanMs,
+            double mouseVelocityMean,
+            double mouseAccelerationMean,
+            double mouseCurvatureMean,
+            int clickCount) {
         public TelemetryBatch {
             sessionId = sessionId == null || sessionId.isBlank() ? "unknown" : sessionId;
             environment = environment == null ? Map.of() : Map.copyOf(environment);
-            if (seqId < 0 || observedAt < 0 || keystrokeCount < 0 || mouseFeatureCount < 0) {
+                if (seqId < 0 || observedAt < 0 || keystrokeCount < 0 || mouseFeatureCount < 0 || clickCount < 0
+                    || !Double.isFinite(dwellMeanMs) || !Double.isFinite(flightMeanMs)
+                    || !Double.isFinite(mouseVelocityMean) || !Double.isFinite(mouseAccelerationMean)
+                    || !Double.isFinite(mouseCurvatureMean)) {
                 throw new IllegalArgumentException("telemetry counters must be non-negative");
             }
         }
