@@ -3,6 +3,7 @@ package com.greenops.scrapper.telemetry;
 import java.time.Instant;
 import java.util.ArrayDeque;
 import java.util.Deque;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicLong;
@@ -41,7 +42,33 @@ public final class TelemetryBatchStore {
             batch == null ? 0.0d : batch.mouseCurvatureMean());
     }
 
+        public synchronized List<TelemetryMetricPoint> recent(int limit) {
+        int safeLimit = Math.max(1, Math.min(limit, MAX_BATCHES));
+        return batches.stream()
+            .skip(Math.max(0, batches.size() - safeLimit))
+            .map(stored -> new TelemetryMetricPoint(
+                stored.batch().seqId(),
+                stored.receivedAt(),
+                stored.batch().keystrokeCount(),
+                stored.batch().mouseFeatureCount(),
+                stored.batch().dwellMeanMs(),
+                stored.batch().flightMeanMs(),
+                stored.batch().mouseVelocityMean(),
+                stored.batch().mouseCurvatureMean()))
+            .toList();
+        }
+
     public record StoredBatch(TelemetryBatch batch, Instant receivedAt) {}
+
+        public record TelemetryMetricPoint(
+            long sequence,
+            Instant receivedAt,
+            int keystrokeCount,
+            int mouseFeatureCount,
+            double dwellMeanMs,
+            double flightMeanMs,
+            double mouseVelocityMean,
+            double mouseCurvatureMean) {}
 
         public record TelemetryStatus(
             long acceptedBatches,

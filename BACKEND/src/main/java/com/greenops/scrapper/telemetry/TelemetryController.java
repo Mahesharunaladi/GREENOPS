@@ -52,6 +52,11 @@ public final class TelemetryController {
         return store.status();
     }
 
+    @GetMapping("/recent")
+    public List<TelemetryBatchStore.TelemetryMetricPoint> recent() {
+        return store.recent(60);
+    }
+
     private TelemetryBatchStore.TelemetryBatch toBatch(JsonNode node) {
         JsonNode environment = node.path("environment");
         return new TelemetryBatchStore.TelemetryBatch(
