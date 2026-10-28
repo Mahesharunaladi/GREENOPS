@@ -43,6 +43,10 @@ The account, verification-code, and session store is currently in memory for dev
 
 The default biometric, SPIRE issuance/revocation, and IAM identity-mapping adapters are deliberately disabled. Connect `BiometricSignalProvider` to trusted `ZeroTrustAgent` session results, `SpireSvidIssuer` and `SpireRevocationClient` to the deployment's SPIRE Workload/Server APIs, and `IamPrincipalResolver` to a server-side session-to-principal mapping before enabling enforcement. Until those adapters are configured, this endpoint fails closed; it does not claim successful attestation or apply IAM policy based on a request-supplied user ID. CloudWatch metrics use namespace `GreenOps/SPIRE`.
 
+## Deception sandbox
+
+The deception router sends requests with a trusted blacklisted fingerprint or trusted server-side `UserSessionContext` failure to `/api/v1/sandbox/synthetic-data`. The console's **Honeypot Sandbox** tab reads authenticated `GET /api/v1/sandbox/events` and displays recent action records. Synthetic EC2 stop and S3 audit routes only return fake data. Action records are bounded in memory by default; `ReactiveThreatRepository` is the hook for a durable reactive/DynamoDB implementation. Captured data is capped at 8 KiB and credential headers/fields are redacted. Configure `GREENOPS_DECEPTION_TRUSTED_PROXIES` with exact proxy IPs before accepting `X-Forwarded-For`, and configure the ingress to strip client-provided `X-TLS-JA3-Fingerprint` before setting the observed TLS fingerprint. The default routing signals require an upstream trusted component to place `UserSessionContext` in request attributes. CloudWatch uses namespace `GreenOps/Deception`, metric `greenops.deception.trapped_attackers`.
+
 ## Validate
 
 ```bash

@@ -14,6 +14,7 @@ type TabId = "overview" | "finops" | "identity" | "ai-swarm" | "deception" | "ec
 type ResourceStatus = "IDLE" | "SIMULATED" | "REMEDIATED";
 type Resource = { id: string; name: string; service: string; spec: string; telemetry: string; savings: number; action: string; status: ResourceStatus };
 type LogEntry = { time: string; level: "INFO" | "SUCCESS" | "WARN" | "AUTH" | "SIMULATION"; message: string };
+type DeceptionEvent = { logId: string; compositeHash: string; ipAddress: string; attemptedEndpoint: string; httpMethod: string; payloadCaptured: string; timestamp: string; violationCount: number };
 
 const tabs: { id: TabId; label: string; path: string; icon: typeof LayoutDashboard }[] = [
   { id: "overview", label: "Executive Overview", path: "/overview", icon: LayoutDashboard },
@@ -327,11 +328,41 @@ function Swarm() {
 }
 
 function Deception() {
+  const [events, setEvents] = useState<DeceptionEvent[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  useEffect(() => {
+    let active = true;
+    const loadEvents = async () => {
+      try {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:8080"}/api/v1/sandbox/events?limit=100`, {
+          credentials: "include", cache: "no-store", headers: { accept: "application/json" },
+        });
+        if (!response.ok) throw new Error(`Backend returned HTTP ${response.status}`);
+        const result = await response.json() as DeceptionEvent[];
+        if (active) { setEvents(result); setError(""); }
+      } catch (cause) {
+        if (active) setError(cause instanceof Error ? cause.message : "Could not load honeypot events");
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+    void loadEvents();
+    const timer = window.setInterval(loadEvents, 10000);
+    return () => { active = false; window.clearInterval(timer); };
+  }, [refreshKey]);
+
   return <>
-    <PageIntro eyebrow="Threat response / Deception" title="Honeypot sandbox" detail="Illustrative honeypot session based on the project brief · routing and capture services are not connected." action={<span className="inline-flex items-center gap-2 rounded-full bg-rose-50 px-3 py-1.5 text-[10px] font-bold text-rose-700"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-rose-500" />1 sample session</span>} />
-    <div className="grid gap-3 sm:grid-cols-3"><StatCard title="Sessions isolated" value="1" icon={ShieldAlert} tone="rose" footnote="Current observation window"/><StatCard title="Captured techniques" value="14" icon={Terminal} tone="amber" footnote="SQL injection attempts · sample"/><StatCard title="Production assets exposed" value="0" icon={ShieldCheck} tone="emerald" footnote="Synthetic data only"/></div>
-    <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm"><div className="flex items-center justify-between border-b border-slate-100 px-5 py-4"><div><h3 className="text-xs font-bold">Isolated session activity</h3><p className="mt-1 text-[10px] text-slate-400">Illustrative honeypot event · sample identifiers</p></div><button className="rounded-md p-1.5 text-slate-400 hover:bg-slate-100" aria-label="More options"><MoreHorizontal size={17}/></button></div><div className="overflow-x-auto"><table className="w-full min-w-[780px] text-left"><thead className="bg-slate-50 text-[9px] font-bold uppercase tracking-[.12em] text-slate-400"><tr><th className="px-5 py-3">Attacker IP</th><th className="px-4 py-3">Session ID</th><th className="px-4 py-3">Sandbox target</th><th className="px-4 py-3">Duration</th><th className="px-4 py-3">Captured activity</th><th className="px-5 py-3">Status</th></tr></thead><tbody className="divide-y divide-slate-100"><AttackerRow ip="185.220.101.5" session="sess-81a2" target="Mock-Financial-DB-v2" duration="04m 12s" exploit="14 SQL injection attempts"/></tbody></table></div><div className="flex flex-col justify-between gap-2 border-t border-slate-100 px-5 py-3 text-[9px] text-slate-400 sm:flex-row"><span className="inline-flex items-center gap-1.5"><LockKeyhole size={11} className="text-emerald-600"/>Synthetic responses contain no production records.</span><span>Sample record · no attacker session is connected</span></div></section>
-    <section className="rounded-xl border border-rose-100 bg-rose-50/50 p-4 sm:p-5"><div className="flex items-start gap-3"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-rose-100 text-rose-600"><AlertTriangle size={16}/></span><div><h3 className="text-xs font-bold text-rose-900">Sandbox flow preview</h3><p className="mt-1 max-w-3xl text-[10px] leading-5 text-rose-800/80">This view illustrates the intended deception workflow. No requests are being routed or captured by this demo.</p></div></div></section>
+    <PageIntro eyebrow="Threat response / Deception" title="Honeypot sandbox" detail="Backend-captured requests routed to synthetic endpoints. Activity refreshes every 10 seconds." action={<span className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[10px] font-bold ${error ? "bg-amber-50 text-amber-700" : "bg-emerald-50 text-emerald-700"}`}><span className={`h-1.5 w-1.5 rounded-full ${error ? "bg-amber-500" : "bg-emerald-500"}`} />{error ? "Backend unavailable" : `${events.length} captured events`}</span>} />
+    <div className="grid gap-3 sm:grid-cols-3"><StatCard title="Captured requests" value={`${events.length}`} icon={ShieldAlert} tone="rose" footnote="Current in-memory window"/><StatCard title="Known repeat violations" value={`${events.reduce((sum, event) => sum + Math.max(0, event.violationCount - 1), 0)}`} icon={Terminal} tone="amber" footnote="From matching fingerprints"/><StatCard title="Production actions" value="0" icon={ShieldCheck} tone="emerald" footnote="Synthetic handlers only"/></div>
+    <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm"><div className="flex items-center justify-between border-b border-slate-100 px-4 py-4 sm:px-5"><div><h3 className="text-xs font-bold">Captured sandbox activity</h3><p className="mt-1 text-[10px] text-slate-400">Payload and headers are bounded and credential-redacted · backend memory store</p></div><button type="button" onClick={() => { setLoading(true); setRefreshKey((value) => value + 1); }} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-2.5 py-1.5 text-[10px] font-semibold text-slate-600 hover:bg-slate-50"><RefreshCw size={12}/>Refresh</button></div>
+      {error && <div role="alert" className="m-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[10px] text-amber-800">Could not load backend events: {error}. Start the backend and sign in again.</div>}
+      <div className="overflow-x-auto"><table className="w-full min-w-[850px] text-left"><thead className="bg-slate-50 text-[9px] font-bold uppercase tracking-[.12em] text-slate-400"><tr><th className="px-5 py-3">Source IP</th><th className="px-4 py-3">Request</th><th className="px-4 py-3">Captured at</th><th className="px-4 py-3">Fingerprint</th><th className="px-5 py-3">Captured request details</th></tr></thead><tbody className="divide-y divide-slate-100">{events.map((event) => <tr key={event.logId} className="align-top hover:bg-slate-50/70"><td className="px-5 py-3 font-mono text-[10px] font-semibold text-slate-800">{event.ipAddress}</td><td className="px-4 py-3"><div className="font-mono text-[10px] font-bold text-rose-700">{event.httpMethod}</div><div className="mt-1 max-w-64 break-all font-mono text-[9px] text-slate-500">{event.attemptedEndpoint}</div><div className="mt-1 text-[9px] text-slate-400">{event.violationCount} matching violation{event.violationCount === 1 ? "" : "s"}</div></td><td className="px-4 py-3 whitespace-nowrap text-[10px] text-slate-500">{new Date(event.timestamp).toLocaleString()}</td><td className="px-4 py-3 font-mono text-[9px] text-slate-500">{event.compositeHash.slice(0, 16)}…</td><td className="max-w-md px-5 py-3"><details><summary className="cursor-pointer text-[10px] font-semibold text-sky-700">Show redacted capture</summary><pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap break-all rounded-lg bg-slate-950 p-3 font-mono text-[9px] leading-4 text-slate-200">{event.payloadCaptured}</pre></details></td></tr>)}</tbody></table>
+        {!loading && events.length === 0 && !error && <div className="px-5 py-12 text-center"><ShieldCheck size={20} className="mx-auto text-slate-300"/><p className="mt-2 text-xs font-semibold text-slate-700">No backend events captured yet</p><p className="mt-1 text-[10px] text-slate-400">Synthetic sandbox requests and diverted threat requests will appear here.</p></div>}
+        {loading && events.length === 0 && <div className="px-5 py-12 text-center text-xs text-slate-400">Loading backend activity…</div>}
+      </div><div className="border-t border-slate-100 px-5 py-3 text-[9px] text-slate-400">Events are retained in backend memory only and disappear when the backend restarts.</div></section>
   </>;
 }
 

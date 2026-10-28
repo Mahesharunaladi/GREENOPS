@@ -40,6 +40,8 @@ greenops:
     baseline:
       allowed-binaries: ${GREENOPS_SPIRE_ALLOWED_BINARIES:}
       user-profiles: ${GREENOPS_SPIRE_USER_PROCESS_PROFILES:}
+  deception:
+    trusted-proxies: ${GREENOPS_DECEPTION_TRUSTED_PROXIES:}
   dry-run: ${GREENOPS_DRY_RUN:true}
   auth:
     cookie-secure: ${GREENOPS_AUTH_COOKIE_SECURE:false}
