@@ -4,8 +4,8 @@ server:
 logging:
   level:
     root: INFO
-    org.springframework.web: INFO
-    org.springframework.web.servlet.mvc.method.annotation.RequestResponseBodyMethodProcessor: OFF
+    '[org.springframework.web]': INFO
+    '[org.springframework.web.servlet.mvc.method.annotation.RequestResponseBodyMethodProcessor]': OFF
 
 spring:
   mail:

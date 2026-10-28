@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
@@ -21,8 +22,24 @@ import reactor.core.publisher.Mono;
 public class SyntheticDeceptionController {
     private static final int MAX_CAPTURE_BYTES = 8192;
     private final SyntheticActionLogger actionLogger;
+    private final FingerprintRegistry registry;
 
-    public SyntheticDeceptionController(SyntheticActionLogger actionLogger) { this.actionLogger = actionLogger; }
+    public SyntheticDeceptionController(SyntheticActionLogger actionLogger, FingerprintRegistry registry) {
+        this.actionLogger = actionLogger;
+        this.registry = registry;
+    }
+
+    @GetMapping("/events")
+    public Mono<java.util.List<DeceptionEventView>> recentEvents(@RequestParam(defaultValue = "100") int limit) {
+        var recent = registry.recentActions(Math.max(0, Math.min(200, limit))).stream().map(action -> {
+            var fingerprint = registry.fingerprint(action.compositeHash());
+            return new DeceptionEventView(action.logId(), action.compositeHash(),
+                    fingerprint.map(value -> value.ipAddress()).orElse("unavailable"), action.attemptedEndpoint(),
+                    action.httpMethod(), action.payloadCaptured(), action.timestamp(),
+                    fingerprint.map(value -> value.violationCount()).orElse(0));
+        }).toList();
+        return Mono.just(recent);
+    }
 
     @PostMapping("/ec2/stop")
     public Mono<ResponseEntity<Map<String, String>>> fakeEc2Stop(ServerWebExchange exchange) {

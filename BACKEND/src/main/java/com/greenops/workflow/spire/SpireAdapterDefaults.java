@@ -35,14 +35,14 @@ public class SpireAdapterDefaults {
             @Value("${greenops.spire.baseline.allowed-binaries:}") String configured,
             @Value("${greenops.spire.baseline.user-profiles:}") String userProfiles) {
         Set<String> allowed = Arrays.stream(configured.split(","))
-                .map(String::trim).filter(value -> !value.isBlank())
+                .map(value -> value.trim()).filter(value -> !value.isBlank())
                 .map(value -> value.toLowerCase(Locale.ROOT)).collect(Collectors.toUnmodifiableSet());
         Map<String, Set<String>> configuredProfiles = new HashMap<>();
         for (String profile : userProfiles.split(";")) {
             int separator = profile.indexOf('=');
             if (separator <= 0) continue;
             Set<String> binaries = Arrays.stream(profile.substring(separator + 1).split("\\|"))
-                    .map(String::trim).filter(value -> !value.isBlank())
+                    .map(value -> value.trim()).filter(value -> !value.isBlank())
                     .map(value -> value.toLowerCase(Locale.ROOT)).collect(Collectors.toUnmodifiableSet());
             configuredProfiles.put(profile.substring(0, separator).trim(), binaries);
         }

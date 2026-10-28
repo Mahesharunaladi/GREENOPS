@@ -13,7 +13,7 @@ import org.springframework.web.server.WebFilterChain;
 import reactor.core.publisher.Mono;
 
 /** Routes requests with trusted server-side risk signals into a synthetic sandbox. */
-@Component
+@Component("adaptiveDeceptionWebFilter")
 @Order(-1)
 public final class HoneypotWebFilter implements WebFilter {
     private static final Logger log = LoggerFactory.getLogger(HoneypotWebFilter.class);

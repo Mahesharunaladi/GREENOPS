@@ -68,7 +68,7 @@ public final class SpireWorkloadWatcher {
         this.iamSessionRevoker = Objects.requireNonNull(iamSessionRevoker);
         this.cloudWatchClient = Objects.requireNonNull(cloudWatchClient);
         this.trustedNodeAttestationHashes = Arrays.stream(trustedNodeHashes.split(","))
-                .map(String::trim).filter(value -> !value.isBlank()).map(value -> value.toLowerCase(Locale.ROOT))
+                .map(value -> value.trim()).filter(value -> !value.isBlank()).map(value -> value.toLowerCase(Locale.ROOT))
                 .collect(Collectors.toUnmodifiableSet());
     }
 
@@ -119,7 +119,13 @@ public final class SpireWorkloadWatcher {
         checks.put("spireSvidIssuer", svidIssuer.isConfigured());
         checks.put("spireRevocationAdapter", spireRevoker.isConfigured());
         checks.put("iamPrincipalMapping", principalResolver.isConfigured());
-        boolean ready = checks.values().stream().allMatch(Boolean::booleanValue);
+        boolean ready = true;
+        for (Boolean configured : checks.values()) {
+            if (!Boolean.TRUE.equals(configured)) {
+                ready = false;
+                break;
+            }
+        }
         Instant lastSeen = lastAttestationAt.get();
         boolean recentActivity = lastSeen != null && lastSeen.isAfter(Instant.now().minusSeconds(60));
         String status = !ready ? "INACTIVE" : recentActivity ? "WATCHING" : "READY";

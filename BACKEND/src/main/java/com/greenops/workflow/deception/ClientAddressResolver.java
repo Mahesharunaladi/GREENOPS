@@ -12,8 +12,8 @@ public final class ClientAddressResolver {
     private final Set<String> trustedProxies;
 
     public ClientAddressResolver(@Value("${greenops.deception.trusted-proxies:}") String configured) {
-        trustedProxies = Arrays.stream(configured.split(",")).map(String::trim).filter(v -> !v.isBlank())
-                .map(this::normalize).collect(Collectors.toUnmodifiableSet());
+        trustedProxies = Arrays.stream(configured.split(",")).map(value -> value.trim()).filter(value -> !value.isBlank())
+                .map(value -> normalize(value)).collect(Collectors.toUnmodifiableSet());
     }
 
     public String resolve(String peerAddress, String forwardedFor) {

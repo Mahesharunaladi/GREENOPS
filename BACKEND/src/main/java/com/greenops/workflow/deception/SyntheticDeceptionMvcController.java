@@ -10,6 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestMapping;
 import reactor.core.publisher.Mono;
 
@@ -20,8 +21,24 @@ import reactor.core.publisher.Mono;
 public class SyntheticDeceptionMvcController {
     private static final int MAX_CAPTURE_BYTES = 8192;
     private final SyntheticActionLogger actionLogger;
+    private final FingerprintRegistry registry;
 
-    public SyntheticDeceptionMvcController(SyntheticActionLogger actionLogger) { this.actionLogger = actionLogger; }
+    public SyntheticDeceptionMvcController(SyntheticActionLogger actionLogger, FingerprintRegistry registry) {
+        this.actionLogger = actionLogger;
+        this.registry = registry;
+    }
+
+    @GetMapping("/events")
+    @org.springframework.web.bind.annotation.ResponseBody
+    public java.util.List<DeceptionEventView> recentEvents(@RequestParam(defaultValue = "100") int limit) {
+        return registry.recentActions(Math.max(0, Math.min(200, limit))).stream().map(action -> {
+            var fingerprint = registry.fingerprint(action.compositeHash());
+            return new DeceptionEventView(action.logId(), action.compositeHash(),
+                    fingerprint.map(value -> value.ipAddress()).orElse("unavailable"), action.attemptedEndpoint(),
+                    action.httpMethod(), action.payloadCaptured(), action.timestamp(),
+                    fingerprint.map(value -> value.violationCount()).orElse(0));
+        }).toList();
+    }
 
     @PostMapping("/ec2/stop")
     @org.springframework.web.bind.annotation.ResponseBody

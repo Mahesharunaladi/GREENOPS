@@ -1,0 +1,49 @@
+{
+  "properties": [
+    {
+      "name": "greenops.spire.trust-domain",
+      "type": "java.lang.String",
+      "description": "SPIFFE trust domain accepted by workload SVID validation."
+    },
+    {
+      "name": "greenops.spire.trust-anchor-pem",
+      "type": "java.lang.String",
+      "description": "PEM encoded X.509 trust anchor for SPIFFE SVID validation."
+    },
+    {
+      "name": "greenops.spire.jwt-rsa-public-key",
+      "type": "java.lang.String",
+      "description": "Base64 DER encoded RSA public key for JWT SVID verification."
+    },
+    {
+      "name": "greenops.spire.jwt-audience",
+      "type": "java.lang.String",
+      "description": "Expected audience claim in JWT SVIDs."
+    },
+    {
+      "name": "greenops.spire.trusted-node-attestation-hashes",
+      "type": "java.lang.String",
+      "description": "Comma separated node attestation hashes trusted by the SPIRE watcher."
+    },
+    {
+      "name": "greenops.spire.baseline.allowed-binaries",
+      "type": "java.lang.String",
+      "description": "Comma separated process names allowed in the default workload baseline."
+    },
+    {
+      "name": "greenops.spire.baseline.user-profiles",
+      "type": "java.lang.String",
+      "description": "Semicolon separated per-user process profiles, with binaries separated by pipes."
+    },
+    {
+      "name": "greenops.deception.trusted-proxies",
+      "type": "java.lang.String",
+      "description": "Comma separated proxy IP addresses permitted to supply X-Forwarded-For."
+    },
+    {
+      "name": "greenops.auth.cookie-secure",
+      "type": "java.lang.Boolean",
+      "description": "Whether the GreenOps authentication cookie requires HTTPS."
+    }
+  ]
+}
