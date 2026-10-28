@@ -49,6 +49,8 @@ const streamEvents: { level: LogEntry["level"]; message: string }[] = [
 
 const money = (n: number) => n.toLocaleString("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2 });
 
+type SpireUiStatus = "CHECKING" | "WATCHING" | "READY" | "INACTIVE" | "UNAVAILABLE";
+
 export default function GreenOpsConsole() {
   const [activeTab, setActiveTab] = useState<TabId>("overview");
   const [collapsed, setCollapsed] = useState(false);
@@ -58,6 +60,16 @@ export default function GreenOpsConsole() {
   const [logs, setLogs] = useState(baseLogs);
   const [searchTerm, setSearchTerm] = useState("");
   const [notice, setNotice] = useState("");
+  const [region, setRegion] = useState("us-east-1");
+  const [regionOpen, setRegionOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [notificationsUnread, setNotificationsUnread] = useState(true);
+  const [accountOpen, setAccountOpen] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
+  const [spireStatus, setSpireStatus] = useState<SpireUiStatus>("CHECKING");
+  const [spireMissingChecks, setSpireMissingChecks] = useState<string[]>([]);
+  const [spireActivity, setSpireActivity] = useState("Checking SPIRE attestation status.");
+  const [spirePanelOpen, setSpirePanelOpen] = useState(false);
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -77,6 +89,30 @@ export default function GreenOpsConsole() {
     syncHash();
     window.addEventListener("popstate", syncHash);
     return () => window.removeEventListener("popstate", syncHash);
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    const refreshSpireStatus = async () => {
+      try {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:8080"}/api/v1/spire/status`, {
+          credentials: "include",
+          cache: "no-store",
+          headers: { accept: "application/json" },
+        });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const status = await response.json() as { status?: SpireUiStatus; checks?: Record<string, boolean>; attestationsSeen?: number; lastAttestationAt?: string | null; lastAttestationVerified?: boolean | null };
+        if (!active) return;
+        setSpireStatus(status.status === "WATCHING" ? "WATCHING" : status.status === "READY" ? "READY" : "INACTIVE");
+        setSpireMissingChecks(Object.entries(status.checks ?? {}).filter(([, configured]) => !configured).map(([name]) => name));
+        setSpireActivity(status.attestationsSeen ? `${status.attestationsSeen} requests seen · latest ${status.lastAttestationVerified ? "verified" : "denied"} at ${status.lastAttestationAt ?? "unknown time"}` : "No attestation requests received yet.");
+      } catch {
+        if (active) setSpireStatus("UNAVAILABLE");
+      }
+    };
+    void refreshSpireStatus();
+    const timer = window.setInterval(refreshSpireStatus, 30000);
+    return () => { active = false; window.clearInterval(timer); };
   }, []);
 
   useEffect(() => {
@@ -118,6 +154,19 @@ export default function GreenOpsConsole() {
     setNotice("Sample cloud candidates restored");
   }
 
+  async function logout() {
+    if (loggingOut) return;
+    setLoggingOut(true);
+    try {
+      await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:8080"}/api/v1/auth/logout`, { method: "POST", credentials: "include" });
+    } catch {
+      // The browser should still return to sign-in if the backend is unavailable.
+    } finally {
+      document.cookie = "greenops_session=; Max-Age=0; path=/; SameSite=Lax";
+      window.location.assign("/login");
+    }
+  }
+
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900 antialiased">
       <div className="flex min-h-screen">
@@ -153,7 +202,7 @@ export default function GreenOpsConsole() {
             <div className="mt-4 flex items-center gap-2.5 border-t border-slate-100 pt-4">
               <div className="grid h-8 w-8 place-items-center rounded-full bg-slate-100 text-slate-600"><UserRound size={15} /></div>
               <div className="min-w-0 flex-1"><div className="truncate text-[11px] font-semibold">Mahesh Aladi</div><div className="text-[10px] text-slate-400">Security administrator</div></div>
-              <button className="rounded-md p-1 text-slate-400 hover:bg-slate-100" aria-label="Account settings"><MoreHorizontal size={17} /></button>
+              <div className="relative"><button type="button" className="rounded-md p-1 text-slate-400 hover:bg-slate-100" aria-label="Account menu" aria-expanded={accountOpen} onClick={() => setAccountOpen((open) => !open)}><MoreHorizontal size={17} /></button>{accountOpen && <div className="absolute bottom-full right-0 z-40 mb-2 w-44 rounded-xl border border-slate-200 bg-white p-1.5 shadow-lg"><div className="border-b border-slate-100 px-3 py-2"><p className="truncate text-[11px] font-semibold text-slate-800">Mahesh Aladi</p><p className="text-[10px] text-slate-400">Security administrator</p></div><button type="button" onClick={logout} disabled={loggingOut} className="mt-1 flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-semibold text-rose-600 hover:bg-rose-50 disabled:opacity-50"><UserRound size={14} />{loggingOut ? "Signing out…" : "Log out"}</button></div>}</div>
             </div>
           </div>
         </aside>
@@ -166,8 +215,15 @@ export default function GreenOpsConsole() {
               <div className="min-w-0"><div className="hidden items-center gap-2 text-[10px] font-medium text-slate-400 sm:flex"><span>GreenOps Console</span><ChevronRight size={12} /><span className="text-slate-500">{currentTab.label}</span></div><h1 className="truncate text-sm font-bold tracking-tight sm:mt-1 sm:text-base">{currentTab.label}</h1></div>
             </div>
             <div className="flex shrink-0 items-center gap-2 sm:gap-4">
-              <div aria-label="AWS region us-east-1" className="flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 px-2 py-1.5 text-[10px] font-semibold text-slate-600 sm:gap-2 sm:px-2.5 sm:py-2 sm:text-[11px]"><CloudCog size={14} className="shrink-0 text-slate-400" /><span>us-east-1</span><ChevronDown size={13} className="shrink-0 text-slate-400" /></div>
-              <button className="relative rounded-lg p-2 text-slate-400 hover:bg-slate-100" aria-label="Notifications"><Bell size={17} /><span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-rose-500 ring-2 ring-white" /></button>
+              <div className="relative hidden sm:block"><button type="button" aria-expanded={spirePanelOpen} onClick={() => setSpirePanelOpen((open) => !open)} title={spireActivity} className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-[9px] font-bold uppercase tracking-wide ${spireStatus === "WATCHING" ? "bg-emerald-50 text-emerald-700" : spireStatus === "READY" ? "bg-sky-50 text-sky-700" : spireStatus === "INACTIVE" ? "bg-amber-50 text-amber-700" : "bg-slate-100 text-slate-500"}`}><span className={`h-1.5 w-1.5 rounded-full ${spireStatus === "WATCHING" ? "bg-emerald-500" : spireStatus === "READY" ? "bg-sky-500" : spireStatus === "INACTIVE" ? "bg-amber-500" : "bg-slate-400"}`} />SPIRE {spireStatus === "CHECKING" ? "checking" : spireStatus === "WATCHING" ? "recent activity" : spireStatus === "READY" ? "configured" : spireStatus === "INACTIVE" ? "inactive" : "unavailable"}<ChevronDown size={11}/></button>{spirePanelOpen && <div className="absolute right-0 top-full z-40 mt-2 w-72 rounded-xl border border-slate-200 bg-white p-4 shadow-lg"><p className="text-xs font-bold text-slate-800">SPIRE attestation</p><p className="mt-1 text-[10px] leading-4 text-slate-500">{spireActivity}</p>{spireStatus === "READY" && <p className="mt-2 text-[10px] text-sky-700">Configured; waiting for an attestation request.</p>}{spireStatus === "WATCHING" && <p className="mt-2 text-[10px] text-emerald-700">Recent request activity detected. This endpoint evaluates incoming requests, not a background process.</p>}{spireStatus === "INACTIVE" && <><p className="mt-3 text-[10px] font-semibold text-amber-700">Missing integrations</p><ul className="mt-1 space-y-1">{spireMissingChecks.map((item) => <li key={item} className="text-[10px] text-slate-500">• {item}</li>)}</ul></>}{spireStatus === "UNAVAILABLE" && <p className="mt-2 text-[10px] text-rose-600">Could not retrieve status from the backend.</p>}</div>}</div>
+              <div className="relative">
+                <button type="button" aria-label={`AWS region ${region}`} aria-expanded={regionOpen} onClick={() => { setRegionOpen((open) => !open); setNotificationsOpen(false); }} className="flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[10px] font-semibold text-slate-600 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-100 sm:gap-2 sm:px-2.5 sm:py-2 sm:text-[11px]"><CloudCog size={14} className="shrink-0 text-slate-400" /><span>{region}</span><ChevronDown size={13} className={`shrink-0 text-slate-400 transition-transform ${regionOpen ? "rotate-180" : ""}`} /></button>
+                {regionOpen && <div className="absolute right-0 top-full z-40 mt-2 w-48 rounded-xl border border-slate-200 bg-white p-1.5 shadow-lg" role="listbox" aria-label="Select AWS region">{["us-east-1", "us-west-2", "eu-west-1", "ap-south-1"].map((item) => <button key={item} type="button" role="option" aria-selected={region === item} onClick={() => { setRegion(item); setRegionOpen(false); setNotice(`Region view changed to ${item} · sample data only`); }} className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-xs font-medium hover:bg-slate-50 ${region === item ? "text-emerald-700" : "text-slate-600"}`}><span className="font-mono">{item}</span>{region === item && <Check size={14} />}</button>)}</div>}
+              </div>
+              <div className="relative">
+                <button type="button" className="relative rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700" aria-label="Notifications" aria-expanded={notificationsOpen} onClick={() => { setNotificationsOpen((open) => !open); setRegionOpen(false); }}><Bell size={17} />{notificationsUnread && <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-rose-500 ring-2 ring-white" />}</button>
+                {notificationsOpen && <div className="absolute right-0 top-full z-40 mt-2 w-[min(21rem,calc(100vw-2rem))] rounded-xl border border-slate-200 bg-white shadow-lg"><div className="flex items-center justify-between border-b border-slate-100 px-4 py-3"><div><p className="text-xs font-bold text-slate-800">Notifications</p><p className="mt-0.5 text-[10px] text-slate-400">Workspace activity</p></div><button type="button" onClick={() => setNotificationsUnread(false)} className="text-[10px] font-semibold text-emerald-700 hover:text-emerald-800">Mark all read</button></div><div className="p-3"><div className="flex gap-3 rounded-lg bg-amber-50/70 p-3"><span className="mt-0.5 h-2 w-2 shrink-0 rounded-full bg-amber-500"/><div><p className="text-[11px] font-semibold text-slate-800">Sample workspace is in illustrative mode</p><p className="mt-1 text-[10px] leading-4 text-slate-500">Cloud actions and identity signals shown here are demo data; live adapters are not connected.</p><p className="mt-2 text-[9px] text-slate-400">Just now</p></div></div><p className="px-1 py-3 text-center text-[10px] text-slate-400">You’re all caught up.</p></div></div>}
+              </div>
             </div>
           </header>
 

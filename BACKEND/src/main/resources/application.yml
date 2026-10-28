@@ -1,6 +1,25 @@
 server:
   port: 8080
 
+logging:
+  level:
+    root: INFO
+    org.springframework.web: INFO
+    org.springframework.web.servlet.mvc.method.annotation.RequestResponseBodyMethodProcessor: OFF
+
+spring:
+  mail:
+    host: ${SMTP_HOST:localhost}
+    port: ${SMTP_PORT:1025}
+    username: ${SMTP_USERNAME:}
+    password: ${SMTP_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: ${SMTP_AUTH:false}
+          starttls:
+            enable: ${SMTP_STARTTLS:false}
+
 management:
   endpoints:
     web:
@@ -12,7 +31,18 @@ management:
         enabled: true
 
 greenops:
+  spire:
+    trust-domain: ${GREENOPS_SPIRE_TRUST_DOMAIN:greenops.internal}
+    trust-anchor-pem: ${GREENOPS_SPIRE_X509_TRUST_ANCHOR_PEM:}
+    jwt-rsa-public-key: ${GREENOPS_SPIRE_JWT_RSA_PUBLIC_KEY:}
+    jwt-audience: ${GREENOPS_SPIRE_JWT_AUDIENCE:greenops-api}
+    trusted-node-attestation-hashes: ${GREENOPS_SPIRE_TRUSTED_NODE_HASHES:}
+    baseline:
+      allowed-binaries: ${GREENOPS_SPIRE_ALLOWED_BINARIES:}
+      user-profiles: ${GREENOPS_SPIRE_USER_PROCESS_PROFILES:}
   dry-run: ${GREENOPS_DRY_RUN:true}
+  auth:
+    cookie-secure: ${GREENOPS_AUTH_COOKIE_SECURE:false}
   slack:
     webhook-url: ${SLACK_WEBHOOK_URL:}
   aws:

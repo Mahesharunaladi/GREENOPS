@@ -20,6 +20,29 @@ npm run dev
 
 The dashboard is available at `http://localhost:3000`. Set `NEXT_PUBLIC_RISK_SSE_URL` only when the backend exposes an authenticated SSE endpoint; otherwise the dashboard uses a clearly labeled demo risk event.
 
+## Email-verified sign-in
+
+Registration and sign-in send a six-digit code to the submitted email address. Codes expire after 10 minutes; a verified session is kept in an HTTP-only cookie for up to 8 hours. Configure an SMTP relay before starting the backend:
+
+```bash
+export SMTP_HOST=smtp.example.com
+export SMTP_PORT=587
+export SMTP_USERNAME=your-smtp-user
+export SMTP_PASSWORD=your-smtp-password
+export SMTP_AUTH=true
+export SMTP_STARTTLS=true
+export GREENOPS_AUTH_MAIL_FROM=security@example.com
+export GREENOPS_AUTH_COOKIE_SECURE=true # Set false for local HTTP development
+```
+
+The account, verification-code, and session store is currently in memory for development. It is cleared when the backend restarts and is not suitable for production; replace it with a durable user/session store and configure HTTPS before deploying.
+
+## SPIRE workload attestation
+
+`POST /api/v1/spire/attest` accepts `WorkloadTelemetry` JSON and is protected by the verified GreenOps session filter. The console's **SPIRE** badge reads `GET /api/v1/spire/status`, showing inactive/configured/recent request activity plus missing integration checks. “Recent activity” means an attestation request reached this endpoint in the last minute; it is not a background process monitor. Configure `GREENOPS_SPIRE_TRUST_DOMAIN`, an X.509 trust anchor PEM (`GREENOPS_SPIRE_X509_TRUST_ANCHOR_PEM`) or JWT RSA public key (`GREENOPS_SPIRE_JWT_RSA_PUBLIC_KEY`, base64 DER), `GREENOPS_SPIRE_JWT_AUDIENCE`, and comma-separated trusted node hashes (`GREENOPS_SPIRE_TRUSTED_NODE_HASHES`). Process allowlists can be global (`GREENOPS_SPIRE_ALLOWED_BINARIES`, comma-separated) or per-user (`GREENOPS_SPIRE_USER_PROCESS_PROFILES`, for example `alice=mvn|kubectl;bob=java|gradle`). Successful executions from the allowlist are counted in a concurrent in-memory history cache and are lost on restart.
+
+The default biometric, SPIRE issuance/revocation, and IAM identity-mapping adapters are deliberately disabled. Connect `BiometricSignalProvider` to trusted `ZeroTrustAgent` session results, `SpireSvidIssuer` and `SpireRevocationClient` to the deployment's SPIRE Workload/Server APIs, and `IamPrincipalResolver` to a server-side session-to-principal mapping before enabling enforcement. Until those adapters are configured, this endpoint fails closed; it does not claim successful attestation or apply IAM policy based on a request-supplied user ID. CloudWatch metrics use namespace `GreenOps/SPIRE`.
+
 ## Validate
 
 ```bash
