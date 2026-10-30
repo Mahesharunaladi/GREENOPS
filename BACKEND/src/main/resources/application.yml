@@ -8,11 +8,13 @@ logging:
     '[org.springframework.web.servlet.mvc.method.annotation.RequestResponseBodyMethodProcessor]': OFF
 
 spring:
+  config:
+    import: "optional:file:./.env[.properties],optional:file:./BACKEND/.env[.properties]"
   mail:
-    host: ${SMTP_HOST:localhost}
-    port: ${SMTP_PORT:1025}
+    host: ${SMTP_HOST:smtp.gmail.com}
+    port: ${SMTP_PORT:587}
     username: ${SMTP_USERNAME:}
-    password: ${SMTP_PASSWORD:}
+    password: ${GREENOPS_SMTP_PASSWORD:${SMTP_PASSWORD:}}
     properties:
       mail:
         smtp:

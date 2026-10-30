@@ -22,18 +22,20 @@ The dashboard is available at `http://localhost:3000`. Set `NEXT_PUBLIC_RISK_SSE
 
 ## Email-verified sign-in
 
-Registration and sign-in send a six-digit code to the submitted email address. Codes expire after 10 minutes; a verified session is kept in an HTTP-only cookie for up to 8 hours. Configure an SMTP relay before starting the backend:
+Registration and sign-in send a six-digit code to the submitted email address. Codes expire after 10 minutes; a verified session is kept in an HTTP-only cookie for up to 8 hours. SMTP settings are loaded automatically from the ignored `BACKEND/.env` file whether Maven is started from the repository root or from `BACKEND`. Enter the SMTP password once in that file; subsequent backend restarts load it without repeating `export` commands:
 
-```bash
-export SMTP_HOST=smtp.example.com
-export SMTP_PORT=587
-export SMTP_USERNAME=your-smtp-user
-export SMTP_PASSWORD=your-smtp-password
-export SMTP_AUTH=true
-export SMTP_STARTTLS=true
-export GREENOPS_AUTH_MAIL_FROM=security@example.com
-export GREENOPS_AUTH_COOKIE_SECURE=true # Set false for local HTTP development
+```properties
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USERNAME=your-gmail-address
+GREENOPS_SMTP_PASSWORD=your-new-google-app-password-without-spaces
+SMTP_AUTH=true
+SMTP_STARTTLS=true
+GREENOPS_AUTH_MAIL_FROM=your-gmail-address
+GREENOPS_AUTH_COOKIE_SECURE=false
 ```
+
+The previous App Password was exposed and must be revoked. Generate a replacement once and put it in the ignored `BACKEND/.env` file; do not commit or share that file. `GREENOPS_SMTP_PASSWORD` takes precedence over a stale `SMTP_PASSWORD` exported in the terminal.
 
 The account, verification-code, and session store is currently in memory for development. It is cleared when the backend restarts and is not suitable for production; replace it with a durable user/session store and configure HTTPS before deploying.
 
