@@ -27,7 +27,7 @@ import reactor.core.publisher.Mono;
 @RestController
 @Validated
 @RequestMapping("/api/v1/enterprise")
-public final class EnterpriseGovernanceController {
+public class EnterpriseGovernanceController {
     private final ComplianceEvaluator compliance;
     private final BlastRadiusEngine blastRadius;
     private final CaepEventTransmitter caep;

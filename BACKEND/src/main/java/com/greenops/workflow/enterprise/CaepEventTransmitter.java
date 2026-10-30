@@ -36,14 +36,13 @@ public final class CaepEventTransmitter {
     private final String audience;
     private final byte[] signingSecret;
 
-    public CaepEventTransmitter(ObjectMapper mapper, WebClient.Builder builder,
-            EventBridgeAsyncClient eventBridge, CloudWatchAsyncClient cloudWatch,
+    public CaepEventTransmitter(ObjectMapper mapper, EventBridgeAsyncClient eventBridge, CloudWatchAsyncClient cloudWatch,
             @Value("${greenops.enterprise.caep.webhook:}") String webhook,
             @Value("${greenops.enterprise.event-bus:}") String eventBus,
             @Value("${greenops.enterprise.caep.issuer:greenops}") String issuer,
             @Value("${greenops.enterprise.caep.audience:greenops-idp}") String audience,
             @Value("${greenops.enterprise.caep.hmac-secret:}") String signingSecret) {
-        this.mapper = mapper; this.webClient = builder.build(); this.eventBridge = eventBridge; this.cloudWatch = cloudWatch;
+        this.mapper = mapper; this.webClient = WebClient.create(); this.eventBridge = eventBridge; this.cloudWatch = cloudWatch;
         this.webhook = webhook; this.eventBus = eventBus; this.issuer = issuer; this.audience = audience;
         this.signingSecret = signingSecret.getBytes(StandardCharsets.UTF_8);
     }

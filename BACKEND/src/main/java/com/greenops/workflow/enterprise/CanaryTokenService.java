@@ -35,11 +35,10 @@ public final class CanaryTokenService {
     private final String callbackBaseUrl;
 
     public CanaryTokenService(ObjectMapper mapper, EventBridgeAsyncClient eventBridge,
-            WebClient.Builder webClientBuilder,
             @Value("${greenops.enterprise.event-bus:}") String eventBus,
             @Value("${greenops.enterprise.canary-alert-webhook:}") String alertWebhook,
             @Value("${greenops.enterprise.canary-callback-url:}") String callbackBaseUrl) {
-        this.mapper = mapper; this.eventBridge = eventBridge; this.webClient = webClientBuilder.build();
+        this.mapper = mapper; this.eventBridge = eventBridge; this.webClient = WebClient.create();
         this.eventBus = eventBus; this.alertWebhook = alertWebhook; this.callbackBaseUrl = callbackBaseUrl;
         if (!callbackBaseUrl.isBlank() && !callbackBaseUrl.startsWith("https://")) {
             throw new IllegalArgumentException("Canary callback base URL must use HTTPS");
