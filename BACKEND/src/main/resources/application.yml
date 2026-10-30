@@ -45,6 +45,21 @@ greenops:
   dry-run: ${GREENOPS_DRY_RUN:true}
   auth:
     cookie-secure: ${GREENOPS_AUTH_COOKIE_SECURE:false}
+  enterprise:
+    admin-api-key: ${GREENOPS_ENTERPRISE_ADMIN_API_KEY:}
+    aws-account-id: ${GREENOPS_AWS_ACCOUNT_ID:}
+    event-bus: ${GREENOPS_ENTERPRISE_EVENT_BUS:}
+    canary-alert-webhook: ${GREENOPS_CANARY_ALERT_WEBHOOK:}
+    canary-callback-url: ${GREENOPS_CANARY_CALLBACK_URL:}
+    caep:
+      webhook: ${GREENOPS_CAEP_WEBHOOK:}
+      issuer: ${GREENOPS_CAEP_ISSUER:greenops}
+      audience: ${GREENOPS_CAEP_AUDIENCE:greenops-idp}
+      hmac-secret: ${GREENOPS_CAEP_HMAC_SECRET:}
+    risk-exposure:
+      s3-bucket: ${GREENOPS_RISK_EXPOSURE_S3_BUCKET:2500}
+      rds-database: ${GREENOPS_RISK_EXPOSURE_RDS_DATABASE:15000}
+      ec2-instance: ${GREENOPS_RISK_EXPOSURE_EC2_INSTANCE:5000}
   slack:
     webhook-url: ${SLACK_WEBHOOK_URL:}
   aws:

@@ -89,30 +89,15 @@ public final class AuthController {
     public record RegistrationRequest(
             @NotBlank @Size(max = 120) String name,
             @NotBlank @Email @Size(max = 254) String email,
-            @NotBlank @Size(min = 10, max = 128) String password) {
-        @Override
-        public String toString() {
-            return "RegistrationRequest[name=" + name + ", email=" + email + ", password=[REDACTED]]";
-        }
-    }
+            @NotBlank @Size(min = 10, max = 128) String password) {}
 
     public record LoginRequest(
             @NotBlank @Email @Size(max = 254) String email,
-            @NotBlank @Size(min = 10, max = 128) String password) {
-        @Override
-        public String toString() {
-            return "LoginRequest[email=" + email + ", password=[REDACTED]]";
-        }
-    }
+            @NotBlank @Size(min = 10, max = 128) String password) {}
 
     public record VerificationRequest(
             @NotBlank @Email @Size(max = 254) String email,
-            @NotBlank @Size(min = 6, max = 6) String code) {
-        @Override
-        public String toString() {
-            return "VerificationRequest[email=" + email + ", code=[REDACTED]]";
-        }
-    }
+            @NotBlank @Size(min = 6, max = 6) String code) {}
 
     public record MessageResponse(String message) {}
     public record VerifiedResponse(String email, String name) {}

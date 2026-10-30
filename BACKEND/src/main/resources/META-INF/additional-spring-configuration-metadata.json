@@ -44,6 +44,66 @@
       "name": "greenops.auth.cookie-secure",
       "type": "java.lang.Boolean",
       "description": "Whether the GreenOps authentication cookie requires HTTPS."
+    },
+    {
+      "name": "greenops.enterprise.admin-api-key",
+      "type": "java.lang.String",
+      "description": "At least 32-byte key required to access enterprise administration endpoints."
+    },
+    {
+      "name": "greenops.enterprise.aws-account-id",
+      "type": "java.lang.String",
+      "description": "AWS account ID used by the enterprise compliance endpoint when no ID is requested."
+    },
+    {
+      "name": "greenops.enterprise.event-bus",
+      "type": "java.lang.String",
+      "description": "Optional EventBridge bus for high-priority canary and CAEP events."
+    },
+    {
+      "name": "greenops.enterprise.canary-alert-webhook",
+      "type": "java.lang.String",
+      "description": "Optional HTTPS webhook for canary token alerts."
+    },
+    {
+      "name": "greenops.enterprise.canary-callback-url",
+      "type": "java.lang.String",
+      "description": "Public base URL for opaque canary callback capabilities."
+    },
+    {
+      "name": "greenops.enterprise.caep.webhook",
+      "type": "java.lang.String",
+      "description": "HTTPS endpoint that accepts signed CAEP Security Event Tokens."
+    },
+    {
+      "name": "greenops.enterprise.caep.issuer",
+      "type": "java.lang.String",
+      "description": "Issuer claim for generated CAEP event tokens."
+    },
+    {
+      "name": "greenops.enterprise.caep.audience",
+      "type": "java.lang.String",
+      "description": "Configured receiver audience for generated CAEP event tokens."
+    },
+    {
+      "name": "greenops.enterprise.caep.hmac-secret",
+      "type": "java.lang.String",
+      "description": "At least 32-byte shared HS256 signing secret for CAEP event tokens."
+    },
+    {
+      "name": "greenops.enterprise.risk-exposure.s3-bucket",
+      "type": "java.lang.Double",
+      "description": "Estimated exposure dollars per accessible S3 bucket; used as an estimate, not a measured loss."
+    },
+    {
+      "name": "greenops.enterprise.risk-exposure.rds-database",
+      "type": "java.lang.Double",
+      "description": "Estimated exposure dollars per accessible RDS database."
+    },
+    {
+      "name": "greenops.enterprise.risk-exposure.ec2-instance",
+      "type": "java.lang.Double",
+      "description": "Estimated exposure dollars per accessible EC2 instance."
     }
   ]
 }
