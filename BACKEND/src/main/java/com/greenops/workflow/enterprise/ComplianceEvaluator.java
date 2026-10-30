@@ -59,7 +59,7 @@ public final class ComplianceEvaluator {
                                 throw new CompletionException(cause);
                             })).toList();
             return CompletableFuture.allOf(checks.toArray(CompletableFuture[]::new))
-                    .thenApply(ignored -> checks.stream().map(CompletableFuture::join).filter(value -> value != null).toList());
+                    .thenApply(ignored -> checks.stream().map(check -> check.join()).filter(value -> value != null).toList());
         });
         CompletableFuture<List<String>> ebsFindings = ec2.describeVolumes().thenApply(result -> result.volumes().stream()
                 .filter(volume -> !Boolean.TRUE.equals(volume.encrypted()))

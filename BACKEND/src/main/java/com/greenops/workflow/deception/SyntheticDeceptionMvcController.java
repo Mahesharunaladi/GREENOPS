@@ -83,7 +83,7 @@ public class SyntheticDeceptionMvcController {
 
     private static String sessionReference(jakarta.servlet.http.HttpServletRequest request) {
         String value = request.getCookies() == null ? "missing-session" : java.util.Arrays.stream(request.getCookies())
-                .filter(cookie -> "greenops_session".equals(cookie.getName())).map(jakarta.servlet.http.Cookie::getValue)
+                .filter(cookie -> "greenops_session".equals(cookie.getName())).map(cookie -> cookie.getValue())
                 .findFirst().orElse("missing-session");
         try { return "session-sha256:" + HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8))); }
         catch (Exception impossible) { throw new IllegalStateException("SHA-256 is unavailable", impossible); }

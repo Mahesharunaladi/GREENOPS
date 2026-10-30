@@ -1,6 +1,51 @@
 {
   "properties": [
     {
+      "name": "greenops.dry-run",
+      "type": "java.lang.Boolean",
+      "description": "When true, cloud remediation workflows operate in dry-run mode."
+    },
+    {
+      "name": "greenops.slack.webhook-url",
+      "type": "java.lang.String",
+      "description": "Slack webhook used by GreenOps operational notifications."
+    },
+    {
+      "name": "greenops.aws.region",
+      "type": "java.lang.String",
+      "description": "Default AWS region for GreenOps cloud service clients."
+    },
+    {
+      "name": "greenops.policy.idle-cpu-threshold",
+      "type": "java.lang.Double",
+      "description": "CPU utilization threshold used to identify idle resources."
+    },
+    {
+      "name": "greenops.policy.idle-network-threshold-kbps",
+      "type": "java.lang.Double",
+      "description": "Network utilization threshold in kilobits per second for idle detection."
+    },
+    {
+      "name": "greenops.policy.required-tag-key",
+      "type": "java.lang.String",
+      "description": "Resource tag key required by GreenOps policy."
+    },
+    {
+      "name": "greenops.policy.required-tag-value",
+      "type": "java.lang.String",
+      "description": "Resource tag value required by GreenOps policy."
+    },
+    {
+      "name": "greenops.policy.autostop-tag-key",
+      "type": "java.lang.String",
+      "description": "Resource tag key enabling automated stop eligibility."
+    },
+    {
+      "name": "greenops.policy.autostop-tag-value",
+      "type": "java.lang.String",
+      "description": "Resource tag value enabling automated stop eligibility."
+    },
+    {
       "name": "greenops.spire.trust-domain",
       "type": "java.lang.String",
       "description": "SPIFFE trust domain accepted by workload SVID validation."

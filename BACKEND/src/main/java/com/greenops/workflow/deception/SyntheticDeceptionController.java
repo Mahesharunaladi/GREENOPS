@@ -89,7 +89,7 @@ public class SyntheticDeceptionController {
 
     private static String sessionReference(String cookieHeader) {
         String value = cookieHeader == null ? "missing-session" : java.util.Arrays.stream(cookieHeader.split(";"))
-                .map(String::trim).filter(cookie -> cookie.startsWith("greenops_session="))
+                .map(cookie -> cookie.trim()).filter(cookie -> cookie.startsWith("greenops_session="))
                 .map(cookie -> cookie.substring("greenops_session=".length())).findFirst().orElse("missing-session");
         try { return "session-sha256:" + HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8))); }
         catch (Exception impossible) { throw new IllegalStateException("SHA-256 is unavailable", impossible); }

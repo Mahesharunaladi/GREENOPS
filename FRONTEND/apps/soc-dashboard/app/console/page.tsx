@@ -2,19 +2,22 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
-  Activity, AlertTriangle, ArrowDownRight, ArrowRight, ArrowUpRight, BarChart3, Bell,
+  Activity, AlertTriangle, ArrowDownRight, ArrowRight, ArrowUpRight, BarChart3, Bell, ClipboardCheck,
   Check, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, CircleDollarSign, Cloud,
   CloudCog, Cpu, Database, Fingerprint, Gauge, Globe2, HardDrive, LayoutDashboard,
   Leaf, LockKeyhole, Menu, MoreHorizontal, Network, Radio, RefreshCw, Search,
   Server, Shield, ShieldAlert, ShieldCheck, Sparkles, Terminal, Timer, UserRound,
-  Users, Waves, X, Zap,
+  Users, Waves, X, Zap, KeyRound, Send,
 } from "lucide-react";
 
-type TabId = "overview" | "finops" | "identity" | "ai-swarm" | "deception" | "eco-security";
+type TabId = "overview" | "finops" | "identity" | "ai-swarm" | "deception" | "eco-security" | "enterprise";
 type ResourceStatus = "IDLE" | "SIMULATED" | "REMEDIATED";
 type Resource = { id: string; name: string; service: string; spec: string; telemetry: string; savings: number; action: string; status: ResourceStatus };
 type LogEntry = { time: string; level: "INFO" | "SUCCESS" | "WARN" | "AUTH" | "SIMULATION"; message: string };
 type DeceptionEvent = { logId: string; compositeHash: string; ipAddress: string; attemptedEndpoint: string; httpMethod: string; payloadCaptured: string; timestamp: string; violationCount: number };
+type ComplianceResult = { framework: string; complianceScorePercentage: number; passedRules: string[]; violations: string[]; evaluatedAt: string };
+type BlastRadiusResult = { userId: string; compromisedRole: string; accessibleS3Buckets: number; accessibleRdsDatabases: number; accessibleEc2Instances: number; quantifiedRiskExposureUsd: number; criticalResourceArns: string[] };
+type CanaryResult = { tokenId: string; fakeAccessKey: string; associatedSessionId: string; honeyResourceType: string; createdAt: string; callbackUrl: string };
 
 const tabs: { id: TabId; label: string; path: string; icon: typeof LayoutDashboard }[] = [
   { id: "overview", label: "Executive Overview", path: "/overview", icon: LayoutDashboard },
@@ -23,6 +26,7 @@ const tabs: { id: TabId; label: string; path: string; icon: typeof LayoutDashboa
   { id: "ai-swarm", label: "Multi-Agent Swarm", path: "/ai-swarm", icon: Network },
   { id: "deception", label: "Honeypot Sandbox", path: "/deception", icon: ShieldAlert },
   { id: "eco-security", label: "Eco-Security Scaler", path: "/eco-security", icon: Leaf },
+  { id: "enterprise", label: "Enterprise Governance", path: "/enterprise", icon: ShieldCheck },
 ];
 
 const initialResources: Resource[] = [
@@ -235,6 +239,7 @@ export default function GreenOpsConsole() {
             {activeTab === "ai-swarm" && <Swarm />}
             {activeTab === "deception" && <Deception />}
             {activeTab === "eco-security" && <EcoSecurity />}
+            {activeTab === "enterprise" && <EnterpriseGovernance />}
           </div>
         </div>
       </div>
@@ -365,6 +370,86 @@ function Deception() {
         {!loading && events.length === 0 && !error && <div className="px-5 py-12 text-center"><ShieldCheck size={20} className="mx-auto text-slate-300"/><p className="mt-2 text-xs font-semibold text-slate-700">No backend events captured yet</p><p className="mt-1 text-[10px] text-slate-400">Synthetic sandbox requests and diverted threat requests will appear here.</p></div>}
         {loading && events.length === 0 && <div className="px-5 py-12 text-center text-xs text-slate-400">Loading backend activity…</div>}
       </div><div className="border-t border-slate-100 px-5 py-3 text-[9px] text-slate-400">Events are retained in backend memory only and disappear when the backend restarts.</div></section>
+  </>;
+}
+
+function EnterpriseGovernance() {
+  const backend = (process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:8080").replace(/\/$/, "");
+  const [adminKey, setAdminKey] = useState("");
+  const [accountId, setAccountId] = useState("");
+  const [userId, setUserId] = useState("");
+  const [roleArn, setRoleArn] = useState("");
+  const [reason, setReason] = useState("Suspicious continuous identity signals");
+  const [riskLevel, setRiskLevel] = useState("HIGH");
+  const [compliance, setCompliance] = useState<ComplianceResult | null>(null);
+  const [blastRadius, setBlastRadius] = useState<BlastRadiusResult | null>(null);
+  const [canary, setCanary] = useState<CanaryResult | null>(null);
+  const [busy, setBusy] = useState("");
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+
+  async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
+    const response = await fetch(`${backend}${path}`, {
+      ...init,
+      credentials: "include",
+      cache: "no-store",
+      headers: {
+        accept: "application/json",
+        "X-GreenOps-Admin-Key": adminKey,
+        ...(init.body ? { "Content-Type": "application/json" } : {}),
+        ...init.headers,
+      },
+    });
+    if (!response.ok) {
+      let detail = `Backend returned HTTP ${response.status}`;
+      try {
+        const body = await response.json() as { detail?: string; message?: string; title?: string };
+        detail = body.detail ?? body.message ?? body.title ?? detail;
+      } catch { /* Keep the HTTP status when the response is not JSON. */ }
+      if (response.status === 401) detail = "Your GreenOps sign-in session expired. Sign in again.";
+      if (response.status === 403) detail = "Admin key was rejected or enterprise admin access is not configured.";
+      throw new Error(detail);
+    }
+    const body = await response.text();
+    return body ? JSON.parse(body) as T : undefined as T;
+  }
+
+  async function run<T>(name: string, work: () => Promise<T>, onSuccess: (result: T) => void, successMessage: string) {
+    setBusy(name); setError(""); setMessage("");
+    try { onSuccess(await work()); setMessage(successMessage); }
+    catch (cause) { setError(cause instanceof Error ? cause.message : "Enterprise request failed"); }
+    finally { setBusy(""); }
+  }
+
+  const buttonClass = "inline-flex items-center justify-center gap-2 rounded-lg bg-slate-900 px-3.5 py-2.5 text-[11px] font-semibold text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50";
+  const inputClass = "w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-[11px] text-slate-800 outline-none placeholder:text-slate-400 focus:border-sky-400 focus:ring-2 focus:ring-sky-100";
+
+  return <>
+    <PageIntro eyebrow="Enterprise / Governance" title="Cloud security posture" detail="Live AWS compliance checks, role access simulation, canary credentials, and CAEP session events." action={<span className="inline-flex items-center gap-2 rounded-full bg-sky-50 px-3 py-1.5 text-[10px] font-bold text-sky-700"><Radio size={12}/>Backend connected on demand</span>} />
+    <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+      <div className="flex items-start gap-3"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-slate-100 text-slate-600"><KeyRound size={16}/></span><div className="min-w-0 flex-1"><h3 className="text-xs font-bold">Enterprise administrator access</h3><p className="mt-1 max-w-3xl text-[10px] leading-5 text-slate-500">Enter the key configured as <code className="font-mono">GREENOPS_ENTERPRISE_ADMIN_API_KEY</code>. It stays in this page’s memory and is sent in request headers; it is not saved in browser storage.</p><label className="mt-3 block max-w-xl"><span className="sr-only">Enterprise admin key</span><input type="password" autoComplete="off" value={adminKey} onChange={(event) => setAdminKey(event.target.value)} placeholder="Enterprise admin key" className={inputClass}/></label></div></div>
+    </section>
+    {(error || message) && <div role={error ? "alert" : "status"} className={`rounded-lg border px-3 py-2.5 text-[11px] ${error ? "border-rose-200 bg-rose-50 text-rose-700" : "border-emerald-200 bg-emerald-50 text-emerald-700"}`}>{error || message}</div>}
+
+    <div className="grid gap-4 xl:grid-cols-2">
+      <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+        <div className="flex items-start justify-between"><div><h3 className="text-xs font-bold">Compliance evaluation</h3><p className="mt-1 text-[10px] text-slate-500">S3 public access block, EBS/RDS encryption, root MFA</p></div><ClipboardCheck size={17} className="text-emerald-600"/></div>
+        <div className="mt-4 flex flex-col gap-2 sm:flex-row"><input value={accountId} onChange={(event) => setAccountId(event.target.value)} placeholder="12-digit AWS account ID" maxLength={12} inputMode="numeric" className={inputClass}/><button className={buttonClass} disabled={!adminKey || busy !== "" || accountId.length !== 12} onClick={() => void run("compliance", () => api<ComplianceResult>(`/api/v1/enterprise/compliance/score?awsAccountId=${encodeURIComponent(accountId)}`, { method: "GET" }), setCompliance, "Compliance evaluation completed.")}>{busy === "compliance" ? "Evaluating…" : "Evaluate posture"}</button></div>
+        {compliance && <div className="mt-4 rounded-lg border border-slate-100 bg-slate-50 p-3"><div className="flex items-end justify-between"><div><div className="text-[9px] font-semibold uppercase tracking-wider text-slate-400">{compliance.framework} score</div><div className="mt-1 text-3xl font-bold">{compliance.complianceScorePercentage.toFixed(1)}<span className="ml-1 text-sm text-slate-400">%</span></div></div><span className="text-[9px] text-slate-400">{new Date(compliance.evaluatedAt).toLocaleString()}</span></div><div className="mt-3 grid gap-3 sm:grid-cols-2"><div><div className="text-[9px] font-bold uppercase text-emerald-700">Passed controls</div><ul className="mt-1 space-y-1">{compliance.passedRules.map((rule) => <li key={rule} className="text-[10px] text-slate-600">✓ {rule}</li>)}</ul></div><div><div className="text-[9px] font-bold uppercase text-rose-700">Findings</div>{compliance.violations.length ? <ul className="mt-1 space-y-1">{compliance.violations.map((item) => <li key={item} className="break-all font-mono text-[9px] text-slate-600">{item}</li>)}</ul> : <p className="mt-1 text-[10px] text-slate-500">No violations returned.</p>}</div></div></div>}
+      </section>
+
+      <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+        <div className="flex items-start justify-between"><div><h3 className="text-xs font-bold">IAM blast radius</h3><p className="mt-1 text-[10px] text-slate-500">Simulates role permissions against discovered resources (up to 100 per type)</p></div><Network size={17} className="text-sky-600"/></div>
+        <div className="mt-4 grid gap-2 sm:grid-cols-2"><input value={userId} onChange={(event) => setUserId(event.target.value)} placeholder="User ID" className={inputClass}/><input value={roleArn} onChange={(event) => setRoleArn(event.target.value)} placeholder="arn:aws:iam::…:role/…" className={`${inputClass} font-mono`}/></div><button className={`${buttonClass} mt-2 w-full sm:w-auto`} disabled={!adminKey || !userId || !roleArn || busy !== ""} onClick={() => void run("blast", () => api<BlastRadiusResult>(`/api/v1/enterprise/blast-radius/${encodeURIComponent(userId)}?iamRoleArn=${encodeURIComponent(roleArn)}`), setBlastRadius, "IAM policy simulation completed.")}>{busy === "blast" ? "Simulating…" : "Calculate blast radius"}</button>
+        {blastRadius && <div className="mt-4"><div className="grid grid-cols-2 gap-2 sm:grid-cols-4"><StatCard title="S3 buckets" value={`${blastRadius.accessibleS3Buckets}`} icon={Cloud} tone="sky" footnote="Accessible by role"/><StatCard title="RDS databases" value={`${blastRadius.accessibleRdsDatabases}`} icon={Database} tone="amber" footnote="Visible by role"/><StatCard title="EC2 instances" value={`${blastRadius.accessibleEc2Instances}`} icon={Server} tone="rose" footnote="Visible by role"/><StatCard title="Estimated exposure" value={money(blastRadius.quantifiedRiskExposureUsd)} icon={CircleDollarSign} tone="emerald" footnote="Configured estimate"/></div><div className="mt-3 max-h-28 overflow-auto rounded-lg bg-slate-50 p-3"><div className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Critical resource ARNs</div>{blastRadius.criticalResourceArns.length ? blastRadius.criticalResourceArns.map((arn) => <div key={arn} className="mt-1 break-all font-mono text-[9px] text-slate-600">{arn}</div>) : <p className="mt-1 text-[10px] text-slate-500">No accessible resources returned.</p>}</div></div>}
+      </section>
+    </div>
+
+    <div className="grid gap-4 xl:grid-cols-2">
+      <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5"><div className="flex items-start justify-between"><div><h3 className="text-xs font-bold">Generate canary credential</h3><p className="mt-1 text-[10px] text-slate-500">Creates an inert marker and callback capability for synthetic data.</p></div><ShieldAlert size={17} className="text-rose-600"/></div><div className="mt-4 flex flex-col gap-2 sm:flex-row"><input value={userId} onChange={(event) => setUserId(event.target.value)} placeholder="Associated session reference" className={inputClass}/><button className={buttonClass} disabled={!adminKey || !userId || busy !== ""} onClick={() => void run("canary", () => api<CanaryResult>("/api/v1/enterprise/canary/tokens", { method: "POST", body: JSON.stringify({ sessionId: userId }) }), setCanary, "Canary credential generated.")}>{busy === "canary" ? "Generating…" : "Generate marker"}</button></div>{canary && <div className="mt-3 rounded-lg border border-amber-100 bg-amber-50/60 p-3"><div className="text-[9px] font-bold uppercase tracking-wider text-amber-800">Inert canary marker · not an AWS credential</div><div className="mt-2 font-mono text-xs font-bold text-slate-800">{canary.fakeAccessKey}</div><div className="mt-1 break-all font-mono text-[9px] text-slate-500">Token {canary.tokenId}</div><div className="mt-2 break-all text-[9px] text-slate-600">Callback: {canary.callbackUrl || "Not configured"}</div><p className="mt-2 text-[9px] text-slate-500">Use only in synthetic or decoy content. Callback state is kept in backend memory.</p></div>}</section>
+
+      <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5"><div className="flex items-start justify-between"><div><h3 className="text-xs font-bold">CAEP session revocation</h3><p className="mt-1 text-[10px] text-slate-500">Sends a signed session-revoked event to configured receivers.</p></div><Send size={17} className="text-rose-600"/></div><div className="mt-4 grid gap-2 sm:grid-cols-2"><input value={userId} onChange={(event) => setUserId(event.target.value)} placeholder="User ID / subject" className={inputClass}/><select value={riskLevel} onChange={(event) => setRiskLevel(event.target.value)} className={inputClass}><option>HIGH</option><option>CRITICAL</option><option>MEDIUM</option><option>LOW</option></select></div><textarea value={reason} onChange={(event) => setReason(event.target.value)} maxLength={512} rows={2} placeholder="Revocation reason" className={`${inputClass} mt-2 resize-y`}/><button className="mt-2 inline-flex items-center justify-center gap-2 rounded-lg bg-rose-600 px-3.5 py-2.5 text-[11px] font-semibold text-white hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-50" disabled={!adminKey || !userId || !reason || busy !== ""} onClick={() => { if (window.confirm(`Send a CAEP session-revoked event for ${userId}? This can sign the user out of connected identity providers.`)) void run("caep", () => api<void>("/api/v1/enterprise/caep/revoke-session", { method: "POST", body: JSON.stringify({ userId, reason, riskLevel }) }), () => undefined, "CAEP event accepted by configured receiver(s)."); }}>{busy === "caep" ? "Sending event…" : "Send session-revoked event"}</button><p className="mt-2 text-[9px] leading-4 text-slate-400">This action can end active sessions. Delivery requires the receiver to trust the configured CAEP issuer and signing key.</p></section>
+    </div>
   </>;
 }
 
