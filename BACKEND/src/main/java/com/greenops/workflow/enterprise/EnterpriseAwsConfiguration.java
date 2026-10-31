@@ -7,6 +7,7 @@ import org.springframework.context.annotation.Configuration;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.cloudwatch.CloudWatchAsyncClient;
 import software.amazon.awssdk.services.ec2.Ec2AsyncClient;
+import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient;
 import software.amazon.awssdk.services.eventbridge.EventBridgeAsyncClient;
 import software.amazon.awssdk.services.iam.IamAsyncClient;
 import software.amazon.awssdk.services.rds.RdsAsyncClient;
@@ -14,6 +15,10 @@ import software.amazon.awssdk.services.s3.S3AsyncClient;
 
 @Configuration
 public class EnterpriseAwsConfiguration {
+    @Bean(destroyMethod = "close") @ConditionalOnMissingBean
+    DynamoDbAsyncClient enterpriseDynamoDbClient(@Value("${greenops.aws.region:us-east-1}") String region) {
+        return DynamoDbAsyncClient.builder().region(Region.of(region)).build();
+    }
     @Bean(destroyMethod = "close") @ConditionalOnMissingBean
     S3AsyncClient enterpriseS3Client(@Value("${greenops.aws.region:us-east-1}") String region) {
         return S3AsyncClient.builder().region(Region.of(region)).build();

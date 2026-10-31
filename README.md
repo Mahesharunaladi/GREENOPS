@@ -59,6 +59,14 @@ The enterprise API is under `/api/v1/enterprise`. Administrative endpoints requi
 
 Synthetic S3 audit CSV responses include an inert, invalid AWS credential marker. Configure `GREENOPS_CANARY_CALLBACK_URL` with the public callback base URL and `GREENOPS_CANARY_ALERT_WEBHOOK` and/or `GREENOPS_ENTERPRISE_EVENT_BUS` for alerts. Callback URLs are random bearer capabilities and bypass browser-session authentication; serve them only over HTTPS and protect them at the edge. Canary records and callback state use a bounded in-memory cache and are lost at restart. The marker cannot detect use through AWS authentication itself; the callback detects visits to the URL embedded in synthetic data.
 
+### Advanced security workflows
+
+The console's **Advanced Security** tab calls `/api/v1/advanced/*`. Endpoints require a signed-in session and the same `X-GreenOps-Admin-Key` configured by `GREENOPS_ENTERPRISE_ADMIN_API_KEY`. Prompt inspection blocks known instruction-override, exfiltration, destructive database, security-control bypass, and unapproved tool-dispatch signatures. It is a deterministic signature filter, not a general prompt-injection proof or an LLM tool execution gateway; callers must only dispatch tools after an explicit `true` response.
+
+Configure `GREENOPS_ADVANCED_THREAT_TABLE` as a DynamoDB table with partition key `eventId` (String) for durable prompt-guard alerts. Configure `GREENOPS_ADVANCED_STORYLINE_TABLE` with partition key `sessionId` (String) and sort key `eventKey` (String) for chronological replay. The backend uses AWS SDK v2 async clients and the normal AWS credential chain; grant only the required DynamoDB, CloudWatch, S3, and EC2 permissions. If tables are absent, storyline replay reports an unavailable backend; a detected prompt is still denied, but the alert is emitted only to application logs. Snapshot references are held in a bounded in-memory cache for 24 hours, so capture and rollback must reach the same backend instance before expiry. Rollback is dry-run by default (`GREENOPS_DRY_RUN=true`); disabling dry-run enables S3 bucket-policy and EC2 security-group ingress changes and should be restricted to an authorized operator.
+
+Predictive TTC requires a trusted `UserSessionContext` from the authenticated server pipeline and an application-provided `PredictiveRiskSignalProvider`. The default provider is intentionally disabled; the endpoint returns HTTP 503 until trusted network drift, hardware-attestation delta, and biometric variance velocity signals are supplied. Its score is a transparent heuristic estimate, not a trained prediction. The controller returns reactive `Mono`/`Flux` responses backed by AWS async SDK calls; the existing application bootstraps the servlet stack, so this feature does not switch the entire backend to a WebFlux server.
+
 ## Validate
 
 ```bash

@@ -149,6 +149,16 @@
       "name": "greenops.enterprise.risk-exposure.ec2-instance",
       "type": "java.lang.Double",
       "description": "Estimated exposure dollars per accessible EC2 instance."
+    },
+    {
+      "name": "greenops.advanced.threat-table",
+      "type": "java.lang.String",
+      "description": "Optional DynamoDB table for high-severity agentic prompt guard events."
+    },
+    {
+      "name": "greenops.advanced.storyline-table",
+      "type": "java.lang.String",
+      "description": "DynamoDB table with sessionId partition key and eventKey sort key for attack storyline events."
     }
   ]
 }

@@ -9,8 +9,9 @@ import {
   Server, Shield, ShieldAlert, ShieldCheck, Sparkles, Terminal, Timer, UserRound,
   Users, Waves, X, Zap, KeyRound, Send,
 } from "lucide-react";
+import type { AgenticPromptPayload, AttackStorylineEvent, PreAttackSnapshot, TtcRiskAssessment } from "@greenops/sdk";
 
-type TabId = "overview" | "finops" | "identity" | "ai-swarm" | "deception" | "eco-security" | "enterprise";
+type TabId = "overview" | "finops" | "identity" | "ai-swarm" | "deception" | "eco-security" | "enterprise" | "advanced";
 type ResourceStatus = "IDLE" | "SIMULATED" | "REMEDIATED";
 type Resource = { id: string; name: string; service: string; spec: string; telemetry: string; savings: number; action: string; status: ResourceStatus };
 type LogEntry = { time: string; level: "INFO" | "SUCCESS" | "WARN" | "AUTH" | "SIMULATION"; message: string };
@@ -27,6 +28,7 @@ const tabs: { id: TabId; label: string; path: string; icon: typeof LayoutDashboa
   { id: "deception", label: "Honeypot Sandbox", path: "/deception", icon: ShieldAlert },
   { id: "eco-security", label: "Eco-Security Scaler", path: "/eco-security", icon: Leaf },
   { id: "enterprise", label: "Enterprise Governance", path: "/enterprise", icon: ShieldCheck },
+  { id: "advanced", label: "Advanced Security", path: "/advanced", icon: Terminal },
 ];
 
 const initialResources: Resource[] = [
@@ -240,6 +242,7 @@ export default function GreenOpsConsole() {
             {activeTab === "deception" && <Deception />}
             {activeTab === "eco-security" && <EcoSecurity />}
             {activeTab === "enterprise" && <EnterpriseGovernance />}
+            {activeTab === "advanced" && <AdvancedSecurity />}
           </div>
         </div>
       </div>
@@ -449,6 +452,108 @@ function EnterpriseGovernance() {
       <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5"><div className="flex items-start justify-between"><div><h3 className="text-xs font-bold">Generate canary credential</h3><p className="mt-1 text-[10px] text-slate-500">Creates an inert marker and callback capability for synthetic data.</p></div><ShieldAlert size={17} className="text-rose-600"/></div><div className="mt-4 flex flex-col gap-2 sm:flex-row"><input value={userId} onChange={(event) => setUserId(event.target.value)} placeholder="Associated session reference" className={inputClass}/><button className={buttonClass} disabled={!adminKey || !userId || busy !== ""} onClick={() => void run("canary", () => api<CanaryResult>("/api/v1/enterprise/canary/tokens", { method: "POST", body: JSON.stringify({ sessionId: userId }) }), setCanary, "Canary credential generated.")}>{busy === "canary" ? "Generating…" : "Generate marker"}</button></div>{canary && <div className="mt-3 rounded-lg border border-amber-100 bg-amber-50/60 p-3"><div className="text-[9px] font-bold uppercase tracking-wider text-amber-800">Inert canary marker · not an AWS credential</div><div className="mt-2 font-mono text-xs font-bold text-slate-800">{canary.fakeAccessKey}</div><div className="mt-1 break-all font-mono text-[9px] text-slate-500">Token {canary.tokenId}</div><div className="mt-2 break-all text-[9px] text-slate-600">Callback: {canary.callbackUrl || "Not configured"}</div><p className="mt-2 text-[9px] text-slate-500">Use only in synthetic or decoy content. Callback state is kept in backend memory.</p></div>}</section>
 
       <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5"><div className="flex items-start justify-between"><div><h3 className="text-xs font-bold">CAEP session revocation</h3><p className="mt-1 text-[10px] text-slate-500">Sends a signed session-revoked event to configured receivers.</p></div><Send size={17} className="text-rose-600"/></div><div className="mt-4 grid gap-2 sm:grid-cols-2"><input value={userId} onChange={(event) => setUserId(event.target.value)} placeholder="User ID / subject" className={inputClass}/><select value={riskLevel} onChange={(event) => setRiskLevel(event.target.value)} className={inputClass}><option>HIGH</option><option>CRITICAL</option><option>MEDIUM</option><option>LOW</option></select></div><textarea value={reason} onChange={(event) => setReason(event.target.value)} maxLength={512} rows={2} placeholder="Revocation reason" className={`${inputClass} mt-2 resize-y`}/><button className="mt-2 inline-flex items-center justify-center gap-2 rounded-lg bg-rose-600 px-3.5 py-2.5 text-[11px] font-semibold text-white hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-50" disabled={!adminKey || !userId || !reason || busy !== ""} onClick={() => { if (window.confirm(`Send a CAEP session-revoked event for ${userId}? This can sign the user out of connected identity providers.`)) void run("caep", () => api<void>("/api/v1/enterprise/caep/revoke-session", { method: "POST", body: JSON.stringify({ userId, reason, riskLevel }) }), () => undefined, "CAEP event accepted by configured receiver(s)."); }}>{busy === "caep" ? "Sending event…" : "Send session-revoked event"}</button><p className="mt-2 text-[9px] leading-4 text-slate-400">This action can end active sessions. Delivery requires the receiver to trust the configured CAEP issuer and signing key.</p></section>
+    </div>
+  </>;
+}
+
+function AdvancedSecurity() {
+  const backend = (process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:8080").replace(/\/$/, "");
+  const [adminKey, setAdminKey] = useState("");
+  const [promptId, setPromptId] = useState("");
+  const [agentId, setAgentId] = useState("");
+  const [userPrompt, setUserPrompt] = useState("");
+  const [toolCall, setToolCall] = useState("");
+  const [promptAllowed, setPromptAllowed] = useState<boolean | null>(null);
+  const [resourceArn, setResourceArn] = useState("");
+  const [snapshot, setSnapshot] = useState<PreAttackSnapshot | null>(null);
+  const [rollbackStatus, setRollbackStatus] = useState("");
+  const [userId, setUserId] = useState("");
+  const [ttc, setTtc] = useState<TtcRiskAssessment | null>(null);
+  const [sessionId, setSessionId] = useState("");
+  const [storyline, setStoryline] = useState<AttackStorylineEvent[]>([]);
+  const [busy, setBusy] = useState("");
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+
+  const inputClass = "w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-[11px] text-slate-800 outline-none placeholder:text-slate-400 focus:border-sky-400 focus:ring-2 focus:ring-sky-100";
+  const buttonClass = "inline-flex items-center justify-center gap-2 rounded-lg bg-slate-900 px-3.5 py-2.5 text-[11px] font-semibold text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50";
+
+  async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
+    const response = await fetch(`${backend}${path}`, {
+      ...init,
+      credentials: "include",
+      cache: "no-store",
+      headers: { accept: "application/json", "X-GreenOps-Admin-Key": adminKey, ...(init.body ? { "Content-Type": "application/json" } : {}), ...init.headers },
+    });
+    if (!response.ok) {
+      let detail = `Backend returned HTTP ${response.status}`;
+      try { const body = await response.json() as { detail?: string; message?: string; title?: string }; detail = body.detail ?? body.message ?? body.title ?? detail; } catch { /* HTTP status is enough. */ }
+      if (response.status === 401) detail = "Your GreenOps sign-in expired. Sign in again.";
+      if (response.status === 403) detail = "Admin key was rejected or advanced administrator access is not configured.";
+      throw new Error(detail);
+    }
+    const body = await response.text();
+    return body ? JSON.parse(body) as T : undefined as T;
+  }
+
+  async function run<T>(name: string, request: () => Promise<T>, complete: (value: T) => void, success: string) {
+    setBusy(name); setError(""); setMessage("");
+    try { complete(await request()); setMessage(success); }
+    catch (cause) { setError(cause instanceof Error ? cause.message : "Advanced security request failed"); }
+    finally { setBusy(""); }
+  }
+
+  const inspect = () => {
+    const payload: AgenticPromptPayload = { promptId, agentId, userPrompt, targetToolCall: toolCall, detectedInjectionSignatures: [], containsIndirectInjection: false };
+    void run("inspect", () => api<boolean>("/api/v1/advanced/ai-guard/inspect", { method: "POST", body: JSON.stringify(payload) }), setPromptAllowed, "Prompt inspection completed.");
+  };
+
+  const capture = () => {
+    setSnapshot(null); setRollbackStatus("");
+    void run("snapshot", () => api<PreAttackSnapshot>("/api/v1/advanced/infrastructure/snapshot", { method: "POST", body: JSON.stringify({ resourceArn }) }), setSnapshot, "Resource snapshot captured.");
+  };
+
+  const rollback = () => {
+    if (!snapshot || !window.confirm(`Request rollback for ${snapshot.resourceArn}? Dry-run is the backend default; enforce mode can change AWS resources.`)) return;
+    void run("rollback", () => api<{ snapshotId: string; status: string }>("/api/v1/advanced/infrastructure/rollback", { method: "POST", body: JSON.stringify({ resourceArn, snapshotId: snapshot.snapshotId }) }), (result) => setRollbackStatus(result.status), "Rollback request completed.");
+  };
+
+  const loadStoryline = () => void run("storyline", () => api<AttackStorylineEvent[]>(`/api/v1/advanced/storyline/replay/${encodeURIComponent(sessionId)}`), setStoryline, "Storyline loaded.");
+
+  return <>
+    <PageIntro eyebrow="Advanced / Response engineering" title="Advanced security operations" detail="Prompt inspection, pre-change snapshots, trusted-signal TTC estimates, and persisted session replay. Operations require the enterprise admin key." action={<span className="inline-flex items-center gap-2 rounded-full bg-sky-50 px-3 py-1.5 text-[10px] font-bold text-sky-700"><Terminal size={12}/>Live backend controls</span>} />
+    <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+      <div className="flex items-start gap-3"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-slate-100 text-slate-600"><KeyRound size={16}/></span><div className="min-w-0 flex-1"><h3 className="text-xs font-bold">Advanced administrator access</h3><p className="mt-1 text-[10px] leading-5 text-slate-500">Uses <code className="font-mono">GREENOPS_ENTERPRISE_ADMIN_API_KEY</code>. The key stays in component memory and is not stored in browser storage.</p><input aria-label="Advanced administrator key" type="password" autoComplete="off" value={adminKey} onChange={(event) => setAdminKey(event.target.value)} placeholder="Enterprise admin key" className={`${inputClass} mt-3 max-w-xl`}/></div></div>
+    </section>
+    {(error || message) && <div role={error ? "alert" : "status"} className={`rounded-lg border px-3 py-2.5 text-[11px] ${error ? "border-rose-200 bg-rose-50 text-rose-700" : "border-emerald-200 bg-emerald-50 text-emerald-700"}`}>{error || message}</div>}
+
+    <div className="grid gap-4 xl:grid-cols-2">
+      <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+        <div className="flex items-start justify-between"><div><h3 className="text-xs font-bold">Agentic prompt guard</h3><p className="mt-1 text-[10px] text-slate-500">Scans prompt and proposed tool call for known injection signatures. This endpoint does not execute tools.</p></div><ShieldAlert size={17} className="text-amber-600"/></div>
+        <div className="mt-4 grid gap-2 sm:grid-cols-2"><input value={promptId} onChange={(event) => setPromptId(event.target.value)} placeholder="Prompt ID" maxLength={256} className={inputClass}/><input value={agentId} onChange={(event) => setAgentId(event.target.value)} placeholder="Agent ID" maxLength={256} className={inputClass}/></div>
+        <textarea value={userPrompt} onChange={(event) => setUserPrompt(event.target.value)} maxLength={16384} rows={4} placeholder="Prompt text to inspect" className={`${inputClass} mt-2 resize-y`}/><textarea value={toolCall} onChange={(event) => setToolCall(event.target.value)} maxLength={8192} rows={2} placeholder="Proposed tool call (optional)" className={`${inputClass} mt-2 resize-y font-mono`}/>
+        <button className={`${buttonClass} mt-2`} disabled={!adminKey || !promptId || !agentId || !userPrompt || busy !== ""} onClick={inspect}>{busy === "inspect" ? "Inspecting…" : "Inspect prompt"}</button>
+        {promptAllowed !== null && <div className={`mt-3 rounded-lg border p-3 text-[11px] font-semibold ${promptAllowed ? "border-emerald-100 bg-emerald-50 text-emerald-800" : "border-rose-100 bg-rose-50 text-rose-800"}`}>{promptAllowed ? "No known injection signature found. This is not a guarantee of safety." : "Blocked: injection signature detected. Do not dispatch the proposed tool call."}</div>}
+      </section>
+
+      <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+        <div className="flex items-start justify-between"><div><h3 className="text-xs font-bold">Snapshot and rollback</h3><p className="mt-1 text-[10px] text-slate-500">Supported resources: S3 bucket policy and EC2 security group ingress. Backend dry-run defaults to enabled.</p></div><RefreshCw size={17} className="text-sky-600"/></div>
+        <input value={resourceArn} onChange={(event) => { setResourceArn(event.target.value); setSnapshot(null); setRollbackStatus(""); }} placeholder="S3 bucket or EC2 security-group ARN" className={`${inputClass} mt-4 font-mono`}/>
+        <button className={`${buttonClass} mt-2`} disabled={!adminKey || !resourceArn || busy !== ""} onClick={capture}>{busy === "snapshot" ? "Capturing…" : "Capture current configuration"}</button>
+        {snapshot && <div className="mt-3 rounded-lg border border-slate-100 bg-slate-50 p-3"><div className="flex flex-wrap items-center justify-between gap-2"><div><p className="text-[10px] font-bold text-slate-700">Snapshot {snapshot.snapshotId}</p><p className="mt-1 text-[9px] text-slate-500">Captured {new Date(snapshot.capturedAt).toLocaleString()}</p></div><button className="inline-flex items-center gap-1.5 rounded-lg border border-rose-200 bg-white px-3 py-2 text-[10px] font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-50" disabled={busy !== ""} onClick={rollback}>{busy === "rollback" ? "Rolling back…" : "Request rollback"}</button></div><pre className="mt-3 max-h-40 overflow-auto whitespace-pre-wrap break-all rounded-lg bg-white p-2 font-mono text-[9px] leading-4 text-slate-600">{snapshot.originalConfigJson}</pre>{rollbackStatus && <p className="mt-2 text-[10px] font-bold text-amber-700">Backend result: {rollbackStatus}</p>}</div>}
+      </section>
+
+      <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+        <div className="flex items-start justify-between"><div><h3 className="text-xs font-bold">Predictive time-to-compromise</h3><p className="mt-1 text-[10px] text-slate-500">Requires trusted session context and a configured network/device/biometric signal provider.</p></div><Timer size={17} className="text-amber-600"/></div>
+        <div className="mt-4 flex flex-col gap-2 sm:flex-row"><input value={userId} onChange={(event) => setUserId(event.target.value)} placeholder="User ID" maxLength={256} className={inputClass}/><button className={buttonClass} disabled={!adminKey || !userId || busy !== ""} onClick={() => void run("ttc", () => api<TtcRiskAssessment>(`/api/v1/advanced/risk/predictive-ttc/${encodeURIComponent(userId)}`), setTtc, "TTC assessment received.")}>{busy === "ttc" ? "Assessing…" : "Calculate TTC"}</button></div>
+        {ttc && <div className="mt-3 grid gap-3 rounded-lg border border-slate-100 bg-slate-50 p-3 sm:grid-cols-3"><div><p className="text-[9px] font-bold uppercase text-slate-400">Estimated TTC</p><p className="mt-1 text-xl font-bold">{ttc.timeToCompromiseMinutes.toFixed(1)} <span className="text-xs font-medium text-slate-500">min</span></p></div><div><p className="text-[9px] font-bold uppercase text-slate-400">Exposure probability</p><p className="mt-1 text-xl font-bold">{ttc.exposureProbabilityPercentage.toFixed(1)}%</p></div><div><p className="text-[9px] font-bold uppercase text-slate-400">Primary risk factor</p><p className="mt-1 break-words text-xs font-semibold">{ttc.primaryRiskFactor}</p></div><p className="text-[9px] text-slate-400 sm:col-span-3">Heuristic estimate · predicted {new Date(ttc.predictedAt).toLocaleString()}</p></div>}
+      </section>
+
+      <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+        <div className="flex items-start justify-between"><div><h3 className="text-xs font-bold">Attack storyline replay</h3><p className="mt-1 text-[10px] text-slate-500">Chronological events persisted in the configured DynamoDB storyline table.</p></div><Activity size={17} className="text-sky-600"/></div>
+        <div className="mt-4 flex flex-col gap-2 sm:flex-row"><input value={sessionId} onChange={(event) => setSessionId(event.target.value)} placeholder="Session ID" maxLength={256} className={inputClass}/><button className={buttonClass} disabled={!adminKey || !sessionId || busy !== ""} onClick={loadStoryline}>{busy === "storyline" ? "Loading…" : "Load replay"}</button></div>
+        {storyline.length > 0 ? <ol className="mt-4 space-y-3 border-l border-slate-200 pl-4">{storyline.map((event) => <li key={event.eventId} className="relative"><span className="absolute -left-[21px] top-1 h-2 w-2 rounded-full bg-sky-500 ring-4 ring-white"/><div className="flex flex-wrap items-center justify-between gap-2"><span className="rounded bg-slate-100 px-2 py-1 font-mono text-[9px] font-bold text-slate-700">{event.stage}</span><time className="text-[9px] text-slate-400">{new Date(event.timestamp).toLocaleString()}</time></div><p className="mt-1 break-words text-[10px] leading-4 text-slate-600">{event.actionDetails}</p><p className="mt-1 font-mono text-[9px] text-slate-400">{event.sourceIp}</p></li>)}</ol> : <p className="mt-4 rounded-lg bg-slate-50 px-3 py-4 text-center text-[10px] text-slate-400">No replay events loaded.</p>}
+      </section>
     </div>
   </>;
 }

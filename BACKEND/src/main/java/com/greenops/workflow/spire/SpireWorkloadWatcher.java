@@ -4,6 +4,7 @@ import com.greenops.model.SpireEvaluationResult;
 import com.greenops.model.SpireReadiness;
 import com.greenops.model.WorkloadTelemetry;
 import com.greenops.workflow.remediation.IamSessionRevoker;
+import com.greenops.workflow.advanced.AttackStorylineService;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -44,6 +45,7 @@ public final class SpireWorkloadWatcher {
     private final IamPrincipalResolver principalResolver;
     private final IamSessionRevoker iamSessionRevoker;
     private final CloudWatchClient cloudWatchClient;
+    private final AttackStorylineService storyline;
     private final Set<String> trustedNodeAttestationHashes;
     private final AtomicLong attestationsSeen = new AtomicLong();
     private final AtomicReference<Instant> lastAttestationAt = new AtomicReference<>();
@@ -58,6 +60,7 @@ public final class SpireWorkloadWatcher {
             IamPrincipalResolver principalResolver,
             IamSessionRevoker iamSessionRevoker,
             CloudWatchClient cloudWatchClient,
+            AttackStorylineService storyline,
             @Value("${greenops.spire.trusted-node-attestation-hashes:}") String trustedNodeHashes) {
         this.svidValidator = Objects.requireNonNull(svidValidator);
         this.baselineStore = Objects.requireNonNull(baselineStore);
@@ -67,6 +70,7 @@ public final class SpireWorkloadWatcher {
         this.principalResolver = Objects.requireNonNull(principalResolver);
         this.iamSessionRevoker = Objects.requireNonNull(iamSessionRevoker);
         this.cloudWatchClient = Objects.requireNonNull(cloudWatchClient);
+        this.storyline = Objects.requireNonNull(storyline);
         this.trustedNodeAttestationHashes = Arrays.stream(trustedNodeHashes.split(","))
                 .map(value -> value.trim()).filter(value -> !value.isBlank()).map(value -> value.toLowerCase(Locale.ROOT))
                 .collect(Collectors.toUnmodifiableSet());
@@ -164,7 +168,18 @@ public final class SpireWorkloadWatcher {
         Mono<Boolean> revokeSvid = trustedSvid
                 ? spireRevoker.revokeSvid(spiffeId, reason).onErrorReturn(false)
                 : Mono.just(false);
-        return revokeSvid.flatMap(revoked -> Mono.fromCallable(() -> {
+        return revokeSvid.flatMap(revoked -> {
+            String stage = reason.toLowerCase(Locale.ROOT).contains("biometric") ? "BIOMETRIC_ANOMALY"
+                    : trustedSvid ? "SPIRE_REVOCATION" : "INITIAL_AUTH";
+            Mono<Void> storylineWrite = storyline.isConfigured()
+                    ? storyline.recordStorylineEvent(event.sessionId(), stage,
+                            "SPIRE workload decision denied; SVID revocation attempted=" + trustedSvid + ", completed=" + revoked + ", reason=" + reason,
+                            "unknown").onErrorResume(error -> {
+                                log.warn("Could not append SPIRE storyline event: {}", error.getClass().getSimpleName());
+                                return Mono.empty();
+                            })
+                    : Mono.empty();
+            return storylineWrite.then(Mono.fromCallable(() -> {
                     // Resolver must bind the submitted session/user pair to a server-trusted IAM principal.
                     principalResolver.resolve(event.sessionId(), event.userId()).ifPresent(principal -> {
                         var outcome = iamSessionRevoker.forceRevoke(principal, "SPIRE workload attestation failure: " + reason);
@@ -173,6 +188,7 @@ public final class SpireWorkloadWatcher {
                     log.warn("Workload attestation denied: session={}, svidRevoked={}, reason={}", event.sessionId(), revoked, reason);
                     return evaluation(false, tierFor(reason), spiffeId, reason, baselineScore);
                 }).subscribeOn(Schedulers.boundedElastic()));
+        });
     }
 
     private Mono<SpireEvaluationResult> result(boolean verified, String tier, String spiffeId, String reason, double score) {

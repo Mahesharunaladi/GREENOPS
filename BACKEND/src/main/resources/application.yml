@@ -73,3 +73,6 @@ greenops:
     required-tag-value: ${GREENOPS_POLICY_REQUIRED_TAG_VALUE:dev}
     autostop-tag-key: ${GREENOPS_POLICY_AUTOSTOP_TAG_KEY:AutoStop}
     autostop-tag-value: ${GREENOPS_POLICY_AUTOSTOP_TAG_VALUE:true}
+  advanced:
+    threat-table: ${GREENOPS_ADVANCED_THREAT_TABLE:}
+    storyline-table: ${GREENOPS_ADVANCED_STORYLINE_TABLE:}

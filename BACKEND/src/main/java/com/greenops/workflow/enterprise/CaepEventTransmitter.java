@@ -24,30 +24,30 @@ import software.amazon.awssdk.services.eventbridge.model.PutEventsRequestEntry;
 
 @Service
 public final class CaepEventTransmitter {
-    private static final Logger log = LoggerFactory.getLogger(CaepEventTransmitter.class);
-    private static final String SESSION_REVOKED = "https://schemas.openid.net/secevent/caep/event-type/session-revoked";
-    private final ObjectMapper mapper;
-    private final WebClient webClient;
-    private final EventBridgeAsyncClient eventBridge;
-    private final CloudWatchAsyncClient cloudWatch;
-    private final String webhook;
-    private final String eventBus;
-    private final String issuer;
-    private final String audience;
-    private final byte[] signingSecret;
+private static final Logger log = LoggerFactory.getLogger(CaepEventTransmitter.class);
+private static final String SESSION_REVOKED = "https://schemas.openid.net/secevent/caep/event-type/session-revoked";
+private final ObjectMapper mapper;
+private final WebClient webClient;
+private final EventBridgeAsyncClient eventBridge;
+private final CloudWatchAsyncClient cloudWatch;
+private final String webhook;
+private final String eventBus;
+private final String issuer;
+private final String audience;
+private final byte[] signingSecret;
 
-    public CaepEventTransmitter(ObjectMapper mapper, EventBridgeAsyncClient eventBridge, CloudWatchAsyncClient cloudWatch,
-            @Value("${greenops.enterprise.caep.webhook:}") String webhook,
-            @Value("${greenops.enterprise.event-bus:}") String eventBus,
-            @Value("${greenops.enterprise.caep.issuer:greenops}") String issuer,
-            @Value("${greenops.enterprise.caep.audience:greenops-idp}") String audience,
-            @Value("${greenops.enterprise.caep.hmac-secret:}") String signingSecret) {
+public CaepEventTransmitter(ObjectMapper mapper, EventBridgeAsyncClient eventBridge, CloudWatchAsyncClient cloudWatch,
+        @Value("${greenops.enterprise.caep.webhook:}") String webhook,
+        @Value("${greenops.enterprise.event-bus:}") String eventBus,
+        @Value("${greenops.enterprise.caep.issuer:greenops}") String issuer,
+        @Value("${greenops.enterprise.caep.audience:greenops-idp}") String audience,
+        @Value("${greenops.enterprise.caep.hmac-secret:}") String signingSecret) {
         this.mapper = mapper; this.webClient = WebClient.create(); this.eventBridge = eventBridge; this.cloudWatch = cloudWatch;
         this.webhook = webhook; this.eventBus = eventBus; this.issuer = issuer; this.audience = audience;
         this.signingSecret = signingSecret.getBytes(StandardCharsets.UTF_8);
-    }
+}
 
-    public Mono<Void> broadcastSecurityEventToken(String userId, String reason, String riskLevel) {
+public Mono<Void> broadcastSecurityEventToken(String userId, String reason, String riskLevel) {
         if (userId == null || userId.isBlank() || userId.length() > 256) return Mono.error(new IllegalArgumentException("userId is required"));
         if (reason == null || reason.isBlank() || reason.length() > 512) return Mono.error(new IllegalArgumentException("reason is required"));
         if (riskLevel == null || !riskLevel.matches("(?i)low|medium|high|critical")) return Mono.error(new IllegalArgumentException("riskLevel must be LOW, MEDIUM, HIGH, or CRITICAL"));
@@ -64,9 +64,9 @@ public final class CaepEventTransmitter {
         return Mono.whenDelayError(webhookSend, eventSend)
                 .then(emitBroadcastMetric())
                 .doOnSuccess(ignored -> log.warn("CAEP session-revoked event broadcast: userId={}, riskLevel={}, jti={}", userId, riskLevel, tokenId(token)));
-    }
+}
 
-    private String signedSet(String userId, String reason, String riskLevel) {
+private String signedSet(String userId, String reason, String riskLevel) {
         long now = Instant.now().getEpochSecond();
         Map<String, Object> header = Map.of("alg", "HS256", "typ", "secevent+jwt");
         Map<String, Object> event = Map.of("subject", Map.of("sub_id", Map.of("format", "opaque", "id", userId)),
@@ -75,21 +75,21 @@ public final class CaepEventTransmitter {
                 "aud", audience, "events", Map.of(SESSION_REVOKED, event));
         String signingInput = base64Json(header) + "." + base64Json(claims);
         try {
-            Mac mac = Mac.getInstance("HmacSHA256");
-            mac.init(new SecretKeySpec(signingSecret, "HmacSHA256"));
-            return signingInput + "." + Base64.getUrlEncoder().withoutPadding().encodeToString(mac.doFinal(signingInput.getBytes(StandardCharsets.US_ASCII)));
+        Mac mac = Mac.getInstance("HmacSHA256");
+        mac.init(new SecretKeySpec(signingSecret, "HmacSHA256"));
+        return signingInput + "." + Base64.getUrlEncoder().withoutPadding().encodeToString(mac.doFinal(signingInput.getBytes(StandardCharsets.US_ASCII)));
         } catch (Exception error) { throw new IllegalStateException("Could not sign CAEP SET", error); }
-    }
+}
 
-    private String base64Json(Object value) {
+private String base64Json(Object value) {
         try { return Base64.getUrlEncoder().withoutPadding().encodeToString(mapper.writeValueAsBytes(value)); }
         catch (Exception error) { throw new IllegalStateException("Could not encode CAEP SET", error); }
-    }
-    private String tokenId(String token) { return token.split("\\.")[1].substring(0, Math.min(16, token.split("\\.")[1].length())); }
-    private Mono<Void> emitBroadcastMetric() {
+}
+private String tokenId(String token) { return token.split("\\.")[1].substring(0, Math.min(16, token.split("\\.")[1].length())); }
+private Mono<Void> emitBroadcastMetric() {
         return Mono.fromFuture(cloudWatch.putMetricData(PutMetricDataRequest.builder().namespace("GreenOps/Enterprise")
                 .metricData(MetricDatum.builder().metricName("greenops.caep.broadcasts_sent").unit(StandardUnit.COUNT)
                         .value(1.0d).timestamp(Instant.now()).build()).build())).then()
                 .onErrorResume(error -> { log.warn("Could not emit CAEP metric: {}", error.getClass().getSimpleName()); return Mono.empty(); });
-    }
+}
 }

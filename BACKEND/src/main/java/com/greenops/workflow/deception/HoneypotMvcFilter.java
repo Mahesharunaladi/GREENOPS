@@ -6,6 +6,10 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletRequestWrapper;
 import jakarta.servlet.http.HttpServletResponse;
+import com.greenops.workflow.advanced.AttackStorylineService;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.util.HexFormat;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Enumeration;
@@ -25,10 +29,12 @@ public final class HoneypotMvcFilter extends OncePerRequestFilter {
     private static final String SANDBOX_PATH = "/api/v1/sandbox/synthetic-data";
     private final FingerprintRegistry registry;
     private final ClientAddressResolver addresses;
+    private final AttackStorylineService storyline;
 
-    public HoneypotMvcFilter(FingerprintRegistry registry, ClientAddressResolver addresses) {
+    public HoneypotMvcFilter(FingerprintRegistry registry, ClientAddressResolver addresses, AttackStorylineService storyline) {
         this.registry = registry;
         this.addresses = addresses;
+        this.storyline = storyline;
     }
 
     @Override
@@ -53,6 +59,11 @@ public final class HoneypotMvcFilter extends OncePerRequestFilter {
         }
         registry.registerThreat(ip, ja3, userAgent, context == null ? "unknown" : context.spiffeSvid(), context == null ? 0.0d : context.biometricScore());
         String originalPath = request.getRequestURI();
+        if (storyline.isConfigured()) {
+            storyline.recordStorylineEvent(sessionReference(request), "DECEPTION_REROUTE",
+                    "Suspicious request diverted to synthetic endpoint from " + originalPath, ip)
+                    .subscribe(ignored -> {}, error -> log.warn("Could not append deception storyline event: {}", error.getClass().getSimpleName()));
+        }
         log.warn("Request diverted to synthetic environment method={} path={} fingerprint={}", request.getMethod(), originalPath, FingerprintRegistry.compositeHash(ip, ja3));
         HttpServletRequestWrapper wrapped = new DeceptionRequestWrapper(request, originalPath);
         RequestDispatcher dispatcher = request.getRequestDispatcher(SANDBOX_PATH);
@@ -60,6 +71,13 @@ public final class HoneypotMvcFilter extends OncePerRequestFilter {
     }
 
     private String valueOrUnknown(String value) { return value == null || value.isBlank() ? "unknown" : value.trim(); }
+
+    private static String sessionReference(HttpServletRequest request) {
+        String token = request.getCookies() == null ? "missing-session" : java.util.Arrays.stream(request.getCookies())
+                .filter(cookie -> "greenops_session".equals(cookie.getName())).map(cookie -> cookie.getValue()).findFirst().orElse("missing-session");
+        try { return "session-sha256:" + HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(token.getBytes(StandardCharsets.UTF_8))); }
+        catch (Exception impossible) { throw new IllegalStateException("SHA-256 is unavailable", impossible); }
+    }
 
     private static final class DeceptionRequestWrapper extends HttpServletRequestWrapper {
         private final String originalPath;
