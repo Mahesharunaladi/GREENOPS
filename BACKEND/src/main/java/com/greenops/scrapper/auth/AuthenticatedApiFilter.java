@@ -25,6 +25,7 @@ public final class AuthenticatedApiFilter extends OncePerRequestFilter {
         return "OPTIONS".equalsIgnoreCase(request.getMethod())
                 || !path.startsWith("/api/v1/")
                 || path.startsWith("/api/v1/auth/")
+                || "/api/v1/operations/events".equals(path) && "POST".equalsIgnoreCase(request.getMethod())
                 || path.matches("/api/v1/enterprise/canary/trigger/[0-9a-fA-F-]{36}");
     }
 

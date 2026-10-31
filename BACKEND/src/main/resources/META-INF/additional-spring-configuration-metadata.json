@@ -159,6 +159,21 @@
       "name": "greenops.advanced.storyline-table",
       "type": "java.lang.String",
       "description": "DynamoDB table with sessionId partition key and eventKey sort key for attack storyline events."
+    },
+    {
+      "name": "greenops.spire.agent-socket",
+      "type": "java.lang.String",
+      "description": "Mounted SPIRE Agent Workload API Unix socket path; readiness probes actual socket connectivity."
+    },
+    {
+      "name": "greenops.notifications.sms-enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enables transactional SMS verification and security alerts through AWS SNS."
+    },
+    {
+      "name": "greenops.notifications.operations-ingest-key",
+      "type": "java.lang.String",
+      "description": "At least 32-byte shared key used by trusted CI and container health monitors to submit operations events."
     }
   ]
 }

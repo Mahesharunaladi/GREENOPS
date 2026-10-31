@@ -12,9 +12,14 @@ import software.amazon.awssdk.services.eventbridge.EventBridgeAsyncClient;
 import software.amazon.awssdk.services.iam.IamAsyncClient;
 import software.amazon.awssdk.services.rds.RdsAsyncClient;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
+import software.amazon.awssdk.services.sns.SnsAsyncClient;
 
 @Configuration
 public class EnterpriseAwsConfiguration {
+    @Bean(destroyMethod = "close") @ConditionalOnMissingBean
+    SnsAsyncClient enterpriseSnsAsyncClient(@Value("${greenops.aws.region:us-east-1}") String region) {
+        return SnsAsyncClient.builder().region(Region.of(region)).build();
+    }
     @Bean(destroyMethod = "close") @ConditionalOnMissingBean
     DynamoDbAsyncClient enterpriseDynamoDbClient(@Value("${greenops.aws.region:us-east-1}") String region) {
         return DynamoDbAsyncClient.builder().region(Region.of(region)).build();

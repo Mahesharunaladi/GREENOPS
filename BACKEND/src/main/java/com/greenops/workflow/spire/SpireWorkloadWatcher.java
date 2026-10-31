@@ -5,6 +5,7 @@ import com.greenops.model.SpireReadiness;
 import com.greenops.model.WorkloadTelemetry;
 import com.greenops.workflow.remediation.IamSessionRevoker;
 import com.greenops.workflow.advanced.AttackStorylineService;
+import com.greenops.workflow.notification.SecurityNotificationService;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -46,6 +47,8 @@ public final class SpireWorkloadWatcher {
     private final IamSessionRevoker iamSessionRevoker;
     private final CloudWatchClient cloudWatchClient;
     private final AttackStorylineService storyline;
+    private final SecurityNotificationService notifications;
+    private final SpireAgentSocketProbe agentSocketProbe;
     private final Set<String> trustedNodeAttestationHashes;
     private final AtomicLong attestationsSeen = new AtomicLong();
     private final AtomicReference<Instant> lastAttestationAt = new AtomicReference<>();
@@ -61,6 +64,8 @@ public final class SpireWorkloadWatcher {
             IamSessionRevoker iamSessionRevoker,
             CloudWatchClient cloudWatchClient,
             AttackStorylineService storyline,
+            SecurityNotificationService notifications,
+            SpireAgentSocketProbe agentSocketProbe,
             @Value("${greenops.spire.trusted-node-attestation-hashes:}") String trustedNodeHashes) {
         this.svidValidator = Objects.requireNonNull(svidValidator);
         this.baselineStore = Objects.requireNonNull(baselineStore);
@@ -71,6 +76,8 @@ public final class SpireWorkloadWatcher {
         this.iamSessionRevoker = Objects.requireNonNull(iamSessionRevoker);
         this.cloudWatchClient = Objects.requireNonNull(cloudWatchClient);
         this.storyline = Objects.requireNonNull(storyline);
+        this.notifications = Objects.requireNonNull(notifications);
+        this.agentSocketProbe = Objects.requireNonNull(agentSocketProbe);
         this.trustedNodeAttestationHashes = Arrays.stream(trustedNodeHashes.split(","))
                 .map(value -> value.trim()).filter(value -> !value.isBlank()).map(value -> value.toLowerCase(Locale.ROOT))
                 .collect(Collectors.toUnmodifiableSet());
@@ -117,6 +124,7 @@ public final class SpireWorkloadWatcher {
     public SpireReadiness readiness() {
         Map<String, Boolean> checks = new LinkedHashMap<>();
         checks.put("svidTrustMaterial", svidValidator.isConfigured());
+        checks.put("spireAgentSocketReachable", agentSocketProbe.isReachable());
         checks.put("trustedNodeAttestationHashes", !trustedNodeAttestationHashes.isEmpty());
         checks.put("processBaseline", baselineStore.isConfigured());
         checks.put("biometricSignalAdapter", biometrics.isConfigured());
@@ -187,7 +195,9 @@ public final class SpireWorkloadWatcher {
                     });
                     log.warn("Workload attestation denied: session={}, svidRevoked={}, reason={}", event.sessionId(), revoked, reason);
                     return evaluation(false, tierFor(reason), spiffeId, reason, baselineScore);
-                }).subscribeOn(Schedulers.boundedElastic()));
+                }).subscribeOn(Schedulers.boundedElastic()))
+                    .flatMap(evaluation -> notifications.notifyUser(event.userId(), "SPIRE", tierFor(reason),
+                            "Workload attestation denied: " + reason).thenReturn(evaluation));
         });
     }
 

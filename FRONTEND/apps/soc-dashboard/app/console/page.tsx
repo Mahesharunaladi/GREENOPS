@@ -10,7 +10,7 @@ import {
   Users, Waves, X, Zap, KeyRound, Send,
 } from "lucide-react";
 import type { AgenticPromptPayload, AttackStorylineEvent, PreAttackSnapshot, TtcRiskAssessment } from "@greenops/sdk";
-import { DEMO_PROFILES, type DemoProfile } from "./demoData";
+import { advancedDemoFor, DEMO_PROFILES, enterpriseDemoFor, type DemoAdvancedRecord, type DemoProfile } from "./demoData";
 
 type TabId = "overview" | "finops" | "identity" | "ai-swarm" | "deception" | "eco-security" | "enterprise" | "advanced";
 type ResourceStatus = "IDLE" | "SIMULATED" | "REMEDIATED";
@@ -20,6 +20,7 @@ type DeceptionEvent = { logId: string; compositeHash: string; ipAddress: string;
 type ComplianceResult = { framework: string; complianceScorePercentage: number; passedRules: string[]; violations: string[]; evaluatedAt: string };
 type BlastRadiusResult = { userId: string; compromisedRole: string; accessibleS3Buckets: number; accessibleRdsDatabases: number; accessibleEc2Instances: number; quantifiedRiskExposureUsd: number; criticalResourceArns: string[] };
 type CanaryResult = { tokenId: string; fakeAccessKey: string; associatedSessionId: string; honeyResourceType: string; createdAt: string; callbackUrl: string };
+type SecurityNotification = { eventId: string; userId: string; source: string; severity: string; summary: string; occurredAt: string };
 
 const tabs: { id: TabId; label: string; path: string; icon: typeof LayoutDashboard }[] = [
   { id: "overview", label: "Executive Overview", path: "/overview", icon: LayoutDashboard },
@@ -68,6 +69,8 @@ export default function GreenOpsConsole() {
   const [regionOpen, setRegionOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [notificationsUnread, setNotificationsUnread] = useState(true);
+  const [securityNotifications, setSecurityNotifications] = useState<SecurityNotification[]>([]);
+  const [notificationLoadError, setNotificationLoadError] = useState("");
   const [accountOpen, setAccountOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const [spireStatus, setSpireStatus] = useState<SpireUiStatus>("CHECKING");
@@ -83,6 +86,30 @@ export default function GreenOpsConsole() {
       setLogs((current) => [{ ...event, time: `${time}.${String(Math.floor(Math.random() * 900) + 100)}` }, ...current].slice(0, 12));
     }, 4600);
     return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    const refreshNotifications = async () => {
+      try {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:8080"}/api/v1/notifications?limit=20`, {
+          credentials: "include", cache: "no-store", headers: { accept: "application/json" },
+        });
+        if (!response.ok) throw new Error(response.status === 401 ? "Sign in to view account alerts." : `HTTP ${response.status}`);
+        const items = await response.json() as SecurityNotification[];
+        if (!active) return;
+        setSecurityNotifications((previous) => {
+          if (items[0]?.eventId && items[0].eventId !== previous[0]?.eventId) setNotificationsUnread(true);
+          return items;
+        });
+        setNotificationLoadError("");
+      } catch (error) {
+        if (active) setNotificationLoadError(error instanceof Error ? error.message : "Could not load alerts.");
+      }
+    };
+    void refreshNotifications();
+    const timer = window.setInterval(refreshNotifications, 15000);
+    return () => { active = false; window.clearInterval(timer); };
   }, []);
 
   useEffect(() => {
@@ -115,11 +142,11 @@ export default function GreenOpsConsole() {
           headers: { accept: "application/json" },
         });
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        const status = await response.json() as { status?: SpireUiStatus; checks?: Record<string, boolean>; attestationsSeen?: number; lastAttestationAt?: string | null; lastAttestationVerified?: boolean | null };
+        const status = await response.json() as { status?: SpireUiStatus; message?: string; checks?: Record<string, boolean>; attestationsSeen?: number; lastAttestationAt?: string | null; lastAttestationVerified?: boolean | null };
         if (!active) return;
         setSpireStatus(status.status === "WATCHING" ? "WATCHING" : status.status === "READY" ? "READY" : "INACTIVE");
         setSpireMissingChecks(Object.entries(status.checks ?? {}).filter(([, configured]) => !configured).map(([name]) => name));
-        setSpireActivity(status.attestationsSeen ? `${status.attestationsSeen} requests seen · latest ${status.lastAttestationVerified ? "verified" : "denied"} at ${status.lastAttestationAt ?? "unknown time"}` : "No attestation requests received yet.");
+        setSpireActivity(status.message ?? (status.attestationsSeen ? `${status.attestationsSeen} requests seen · latest ${status.lastAttestationVerified ? "verified" : "denied"} at ${status.lastAttestationAt ?? "unknown time"}` : "No attestation requests received yet."));
       } catch {
         if (active) setSpireStatus("UNAVAILABLE");
       }
@@ -236,7 +263,7 @@ export default function GreenOpsConsole() {
               </div>
               <div className="relative">
                 <button type="button" className="relative rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700" aria-label="Notifications" aria-expanded={notificationsOpen} onClick={() => { setNotificationsOpen((open) => !open); setRegionOpen(false); }}><Bell size={17} />{notificationsUnread && <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-rose-500 ring-2 ring-white" />}</button>
-                {notificationsOpen && <div className="absolute right-0 top-full z-40 mt-2 w-[min(21rem,calc(100vw-2rem))] rounded-xl border border-slate-200 bg-white shadow-lg"><div className="flex items-center justify-between border-b border-slate-100 px-4 py-3"><div><p className="text-xs font-bold text-slate-800">Notifications</p><p className="mt-0.5 text-[10px] text-slate-400">Workspace activity</p></div><button type="button" onClick={() => setNotificationsUnread(false)} className="text-[10px] font-semibold text-emerald-700 hover:text-emerald-800">Mark all read</button></div><div className="p-3"><div className="flex gap-3 rounded-lg bg-amber-50/70 p-3"><span className="mt-0.5 h-2 w-2 shrink-0 rounded-full bg-amber-500"/><div><p className="text-[11px] font-semibold text-slate-800">Sample workspace is in illustrative mode</p><p className="mt-1 text-[10px] leading-4 text-slate-500">Cloud actions and identity signals shown here are demo data; live adapters are not connected.</p><p className="mt-2 text-[9px] text-slate-400">Just now</p></div></div><p className="px-1 py-3 text-center text-[10px] text-slate-400">You’re all caught up.</p></div></div>}
+                {notificationsOpen && <div className="absolute right-0 top-full z-40 mt-2 w-[min(24rem,calc(100vw-2rem))] rounded-xl border border-slate-200 bg-white shadow-lg"><div className="flex items-center justify-between border-b border-slate-100 px-4 py-3"><div><p className="text-xs font-bold text-slate-800">Account security alerts</p><p className="mt-0.5 text-[10px] text-slate-400">Backend events · refreshed every 15 seconds</p></div><button type="button" onClick={() => setNotificationsUnread(false)} className="text-[10px] font-semibold text-emerald-700 hover:text-emerald-800">Mark read</button></div><div className="max-h-64 overflow-y-auto p-3">{notificationLoadError && <p className="rounded-lg bg-amber-50 p-2 text-[10px] text-amber-800">{notificationLoadError}</p>}{securityNotifications.length ? <div className="space-y-2">{securityNotifications.map((event) => <div key={event.eventId} className={`rounded-lg border p-3 ${event.severity === "CRITICAL" || event.severity === "ERROR" ? "border-rose-100 bg-rose-50/70" : "border-amber-100 bg-amber-50/50"}`}><div className="flex items-center justify-between gap-2"><span className="text-[10px] font-bold text-slate-800">{event.source} · {event.severity}</span><time className="text-[9px] text-slate-400">{new Date(event.occurredAt).toLocaleString()}</time></div><p className="mt-1 text-[10px] leading-4 text-slate-600">{event.summary}</p></div>)}</div> : !notificationLoadError && <p className="px-2 py-6 text-center text-[10px] text-slate-400">No backend security alerts recorded for this account.</p>}</div><PhoneAlertsSettings /></div>}
               </div>
             </div>
           </header>
@@ -248,7 +275,7 @@ export default function GreenOpsConsole() {
             {activeTab === "ai-swarm" && <Swarm profile={selectedDemo} />}
             {activeTab === "deception" && <Deception profile={selectedDemo} />}
             {activeTab === "eco-security" && <EcoSecurity profile={selectedDemo} />}
-            {activeTab === "enterprise" && <EnterpriseGovernance />}
+            {activeTab === "enterprise" && <EnterpriseGovernance profile={selectedDemo} />}
             {activeTab === "advanced" && <AdvancedSecurity profile={selectedDemo} />}
           </div>
         </div>
@@ -256,6 +283,40 @@ export default function GreenOpsConsole() {
       {notice && <div role="status" className="fixed bottom-5 right-5 z-50 flex max-w-[calc(100vw-2.5rem)] items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-semibold text-slate-700 shadow-lg"><CheckCircle2 size={16} className="shrink-0 text-emerald-600" />{notice}<button onClick={() => setNotice("")} aria-label="Dismiss" className="ml-2 text-slate-400"><X size={14} /></button></div>}
     </main>
   );
+}
+
+function PhoneAlertsSettings() {
+  const backend = (process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:8080").replace(/\/$/, "");
+  const [phone, setPhone] = useState("");
+  const [code, setCode] = useState("");
+  const [status, setStatus] = useState<{ smsEnabled: boolean; verified: boolean; maskedPhoneNumber: string } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    fetch(`${backend}/api/v1/auth/phone`, { credentials: "include", cache: "no-store", headers: { accept: "application/json" } })
+      .then(async (response) => { if (!response.ok) throw new Error(response.status === 401 ? "Sign in to link a phone." : `Phone settings returned HTTP ${response.status}`); return await response.json() as { smsEnabled: boolean; verified: boolean; maskedPhoneNumber: string }; })
+      .then((value) => { if (active) setStatus(value); })
+      .catch((cause: unknown) => { if (active) setError(cause instanceof Error ? cause.message : "Could not load phone settings."); });
+    return () => { active = false; };
+  }, [backend]);
+
+  async function send(path: string, body: unknown, success: string) {
+    setBusy(true); setError(""); setMessage("");
+    try {
+      const response = await fetch(`${backend}${path}`, { method: "POST", credentials: "include", cache: "no-store", headers: { accept: "application/json", "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      const result = await response.json() as { smsEnabled?: boolean; verified?: boolean; maskedPhoneNumber?: string; message?: string; detail?: string };
+      if (!response.ok) throw new Error(result.detail ?? result.message ?? `Phone alert request returned HTTP ${response.status}`);
+      if (typeof result.smsEnabled === "boolean") setStatus({ smsEnabled: result.smsEnabled, verified: result.verified ?? false, maskedPhoneNumber: result.maskedPhoneNumber ?? "" });
+      setMessage(success);
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Phone alert request failed."); }
+    finally { setBusy(false); }
+  }
+
+  const input = "w-full rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-[10px] text-slate-800 outline-none placeholder:text-slate-400 focus:border-sky-400";
+  return <div className="border-t border-slate-100 p-3"><p className="text-[10px] font-bold text-slate-800">SMS alert contact</p>{status?.verified ? <p className="mt-1 text-[9px] text-emerald-700">Verified number linked: {status.maskedPhoneNumber}</p> : <><p className="mt-1 text-[9px] leading-4 text-slate-500">Link and verify your own number to receive anomaly and operations alerts.</p><div className="mt-2 flex gap-2"><input aria-label="Phone number in E.164 format" value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="+14155550123" className={input}/><button type="button" disabled={busy || !phone} onClick={() => void send("/api/v1/auth/phone/request-verification", { phoneNumber: phone }, "Verification code sent by SMS.")} className="shrink-0 rounded-lg bg-slate-900 px-2.5 py-2 text-[9px] font-semibold text-white disabled:opacity-50">Send code</button></div><div className="mt-2 flex gap-2"><input aria-label="SMS verification code" value={code} onChange={(event) => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))} placeholder="6-digit code" inputMode="numeric" className={input}/><button type="button" disabled={busy || code.length !== 6} onClick={() => void send("/api/v1/auth/phone/verify", { code }, "Phone number verified; security SMS alerts are enabled.")} className="shrink-0 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-2 text-[9px] font-semibold text-emerald-700 disabled:opacity-50">Verify</button></div></>}{status && !status.smsEnabled && <p className="mt-2 text-[9px] text-amber-700">SMS is disabled on the backend. Configure AWS SNS and enable GREENOPS_SMS_ENABLED.</p>}{error && <p role="alert" className="mt-2 text-[9px] text-rose-700">{error}</p>}{message && <p role="status" className="mt-2 text-[9px] text-emerald-700">{message}</p>}</div>;
 }
 
 function Overview({ logs, navigate, profile }: { logs: LogEntry[]; navigate: (tab: TabId) => void; profile: DemoProfile }) {
@@ -389,7 +450,7 @@ function Deception({ profile }: { profile: DemoProfile }) {
   </>;
 }
 
-function EnterpriseGovernance() {
+function EnterpriseGovernance({ profile }: { profile: DemoProfile }) {
   const backend = (process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:8080").replace(/\/$/, "");
   const [adminKey, setAdminKey] = useState("");
   const [accountId, setAccountId] = useState("");
@@ -403,6 +464,7 @@ function EnterpriseGovernance() {
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const demo = enterpriseDemoFor(profile);
 
   async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     const response = await fetch(`${backend}${path}`, {
@@ -442,6 +504,7 @@ function EnterpriseGovernance() {
 
   return <>
     <PageIntro eyebrow="Enterprise / Governance" title="Cloud security posture" detail="Live AWS compliance checks, role access simulation, canary credentials, and CAEP session events." action={<span className="inline-flex items-center gap-2 rounded-full bg-sky-50 px-3 py-1.5 text-[10px] font-bold text-sky-700"><Radio size={12}/>Backend connected on demand</span>} />
+    <section className="rounded-xl border border-amber-200 bg-amber-50/50 p-4 shadow-sm sm:p-5"><div className="flex flex-wrap items-start justify-between gap-2"><div><h3 className="text-xs font-bold text-slate-800">Enterprise governance demo data · {profile.name}</h3><p className="mt-1 text-[10px] text-slate-600">Synthetic estimate for {profile.region}; separate from live AWS results and never sent to the backend.</p></div><span className="rounded-full bg-amber-100 px-2.5 py-1 text-[9px] font-bold uppercase text-amber-800">Fixture only</span></div><div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4"><StatCard title="SOC 2 sample score" value={`${demo.complianceScorePercentage.toFixed(1)}%`} icon={ClipboardCheck} tone={demo.violations.length ? "amber" : "emerald"} footnote="Synthetic control evaluation"/><StatCard title="S3 buckets in sample role" value={`${demo.accessibleS3Buckets}`} icon={Cloud} tone="sky" footnote="Illustrative access scope"/><StatCard title="RDS / EC2 resources" value={`${demo.accessibleRdsDatabases} / ${demo.accessibleEc2Instances}`} icon={Server} tone="rose" footnote="Sample role reachability"/><StatCard title="Estimated exposure" value={money(demo.quantifiedRiskExposureUsd)} icon={CircleDollarSign} tone="amber" footnote="Synthetic risk estimate"/></div><div className="mt-3 grid gap-3 sm:grid-cols-2"><div className="rounded-lg border border-white bg-white/80 p-3"><p className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Sample controls</p>{demo.passedRules.map((rule) => <p key={rule} className="mt-1 text-[10px] text-emerald-700">✓ {rule}</p>)}{demo.violations.map((rule) => <p key={rule} className="mt-1 text-[10px] text-rose-700">! {rule}</p>)}</div><div className="rounded-lg border border-white bg-white/80 p-3"><p className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Canary / CAEP examples</p><p className="mt-1 font-mono text-[10px] text-slate-700">{demo.canaryMarker} · inert marker</p><p className="mt-1 text-[10px] text-slate-600">{demo.caepStatus} · no event broadcast</p></div></div></section>
     <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
       <div className="flex items-start gap-3"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-slate-100 text-slate-600"><KeyRound size={16}/></span><div className="min-w-0 flex-1"><h3 className="text-xs font-bold">Enterprise administrator access</h3><p className="mt-1 max-w-3xl text-[10px] leading-5 text-slate-500">Enter the key configured as <code className="font-mono">GREENOPS_ENTERPRISE_ADMIN_API_KEY</code>. It stays in this page’s memory and is sent in request headers; it is not saved in browser storage.</p><label className="mt-3 block max-w-xl"><span className="sr-only">Enterprise admin key</span><input type="password" autoComplete="off" value={adminKey} onChange={(event) => setAdminKey(event.target.value)} placeholder="Enterprise admin key" className={inputClass}/></label></div></div>
     </section>
@@ -469,6 +532,18 @@ function EnterpriseGovernance() {
   </>;
 }
 
+function AdvancedDemoPanel({ profile, demo }: { profile: DemoProfile; demo: DemoAdvancedRecord }) {
+  return <section className="rounded-xl border border-amber-200 bg-amber-50/50 p-4 shadow-sm sm:p-5">
+    <div className="flex flex-wrap items-start justify-between gap-2"><div><h3 className="text-xs font-bold text-slate-800">Advanced Security demo data · {profile.name}</h3><p className="mt-1 text-[10px] text-slate-600">Illustrative local scenario only. No prompt was inspected, snapshot captured, TTC model run, or storyline stored.</p></div><span className="rounded-full bg-amber-100 px-2.5 py-1 text-[9px] font-bold uppercase text-amber-800">Fixture only</span></div>
+    <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4"><StatCard title="Prompt-guard example" value={demo.promptStatus} icon={ShieldAlert} tone={demo.promptStatus === "BLOCKED" ? "rose" : "emerald"} footnote="Synthetic verdict · not executed"/><StatCard title="Estimated TTC" value={`${demo.timeToCompromiseMinutes.toFixed(1)} min`} icon={Timer} tone="amber" footnote="Illustrative heuristic"/><StatCard title="Exposure probability" value={`${demo.exposureProbabilityPercentage.toFixed(1)}%`} icon={Activity} tone="rose" footnote={demo.primaryRiskFactor}/><StatCard title="Replay events" value={`${demo.storyline.length}`} icon={Terminal} tone="sky" footnote="Local timeline fixture"/></div>
+    <div className="mt-3 grid gap-3 xl:grid-cols-2">
+      <div className="rounded-lg border border-white bg-white/80 p-3"><p className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Prompt example · local fixture</p><p className="mt-2 text-[10px] leading-5 text-slate-700">{demo.promptExample}</p><p className={`mt-2 text-[10px] font-semibold ${demo.promptStatus === "BLOCKED" ? "text-rose-700" : "text-emerald-700"}`}>{demo.promptStatus}{demo.detectedInjectionSignatures.length ? ` · ${demo.detectedInjectionSignatures.join(", ")}` : " · no sample signature"}</p><p className="mt-1 text-[9px] text-slate-400">This example has not been sent to the backend prompt guard.</p></div>
+      <div className="rounded-lg border border-white bg-white/80 p-3"><p className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Snapshot preview · not a real AWS resource</p><p className="mt-1 break-all font-mono text-[9px] text-slate-600">{demo.snapshotResourceArn}</p><pre className="mt-2 max-h-24 overflow-auto whitespace-pre-wrap rounded bg-slate-50 p-2 font-mono text-[9px] text-slate-600">{demo.snapshotPreview}</pre><p className="mt-1 text-[9px] text-slate-400">Preview only; it cannot be used for rollback.</p></div>
+    </div>
+    <div className="mt-3 rounded-lg border border-white bg-white/80 p-3"><p className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Synthetic storyline · {profile.sessionId}</p>{demo.storyline.length ? <ol className="mt-2 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">{demo.storyline.map((event, index) => <li key={`${event.stage}-${index}`} className="rounded-lg border border-slate-100 bg-white p-2"><div className="flex items-center justify-between gap-2"><span className="font-mono text-[9px] font-bold text-sky-700">{event.stage}</span><time className="text-[8px] text-slate-400">{new Date(event.timestamp).toLocaleTimeString()}</time></div><p className="mt-1 text-[9px] leading-4 text-slate-600">{event.actionDetails}</p><p className="mt-1 font-mono text-[8px] text-slate-400">{event.sourceIp} · TEST-NET</p></li>)}</ol> : <p className="mt-2 text-[10px] text-slate-500">No simulated anomaly stages for this profile.</p>}</div>
+  </section>;
+}
+
 function AdvancedSecurity({ profile }: { profile: DemoProfile }) {
   const backend = (process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:8080").replace(/\/$/, "");
   const [adminKey, setAdminKey] = useState("");
@@ -487,6 +562,7 @@ function AdvancedSecurity({ profile }: { profile: DemoProfile }) {
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const demo = advancedDemoFor(profile);
 
   const inputClass = "w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-[11px] text-slate-800 outline-none placeholder:text-slate-400 focus:border-sky-400 focus:ring-2 focus:ring-sky-100";
   const buttonClass = "inline-flex items-center justify-center gap-2 rounded-lg bg-slate-900 px-3.5 py-2.5 text-[11px] font-semibold text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50";
@@ -536,6 +612,7 @@ function AdvancedSecurity({ profile }: { profile: DemoProfile }) {
   return <>
     <PageIntro eyebrow="Advanced / Response engineering" title="Advanced security operations" detail="Prompt inspection, pre-change snapshots, trusted-signal TTC estimates, and persisted session replay. Operations require the enterprise admin key." action={<span className="inline-flex items-center gap-2 rounded-full bg-sky-50 px-3 py-1.5 text-[10px] font-bold text-sky-700"><Terminal size={12}/>Live backend controls</span>} />
     <section className="rounded-xl border border-amber-200 bg-amber-50/60 px-4 py-3 text-[10px] leading-5 text-amber-900">Selected demo profile: <b>{profile.name}</b> ({profile.userId}, {profile.region}). These fixtures are not written to the backend. Live controls below still call real backend services and use the entered IDs as provided.</section>
+    <AdvancedDemoPanel profile={profile} demo={demo} />
     <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
       <div className="flex items-start gap-3"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-slate-100 text-slate-600"><KeyRound size={16}/></span><div className="min-w-0 flex-1"><h3 className="text-xs font-bold">Advanced administrator access</h3><p className="mt-1 text-[10px] leading-5 text-slate-500">Uses <code className="font-mono">GREENOPS_ENTERPRISE_ADMIN_API_KEY</code>. The key stays in component memory and is not stored in browser storage.</p><input aria-label="Advanced administrator key" type="password" autoComplete="off" value={adminKey} onChange={(event) => setAdminKey(event.target.value)} placeholder="Enterprise admin key" className={`${inputClass} mt-3 max-w-xl`}/></div></div>
     </section>

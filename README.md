@@ -69,7 +69,15 @@ Predictive TTC requires a trusted `UserSessionContext` from the authenticated se
 
 ### Local multi-user demo dataset
 
-The console has six browser-only demo profiles in `FRONTEND/apps/soc-dashboard/app/console/demoData.ts`: Alex Chen (`us-east-1`), Priya Nair (`ap-south-1`), Mateo Silva (`eu-west-1`), Amara Okafor (`eu-central-1`), Noah Williams (`us-west-2`), and Mei Tan (`ap-southeast-1`). Select a region from the console header to switch the persona and its synthetic identity, risk, FinOps, swarm, and security-tier values. The overview lists all six. These are not registered backend accounts, AWS resources, or telemetry; the demo IPs come from reserved TEST-NET ranges. Enterprise and Advanced Security controls remain live backend calls and are not populated with these fixtures.
+The console has six browser-only demo profiles in `FRONTEND/apps/soc-dashboard/app/console/demoData.ts`: Alex Chen (`us-east-1`), Priya Nair (`ap-south-1`), Mateo Silva (`eu-west-1`), Amara Okafor (`eu-central-1`), Noah Williams (`us-west-2`), and Mei Tan (`ap-southeast-1`). Select a region from the console header to switch the persona and its synthetic identity, risk, FinOps, swarm, security-tier, Enterprise Governance, and Advanced Security panels. The overview lists all six. These fixtures are not registered backend accounts, AWS resources, or telemetry; demo IPs use reserved TEST-NET ranges. Live actions on the Enterprise Governance and Advanced Security pages remain separate backend calls and never consume or store these fixtures.
+
+### SPIRE agent health and phone alerts
+
+The SPIRE readiness endpoint now probes `GREENOPS_SPIRE_AGENT_SOCKET` and reports an active watcher only when the local Workload API socket and all validation/enforcement adapters are ready. Mount the actual SPIRE Agent Workload API socket into the backend container and configure the trust material, process baseline, biometric provider, SVID issuer/revoker, node hashes, and IAM mapping. This project does not ship or start a SPIRE deployment; the development adapter defaults intentionally keep readiness inactive until real integrations are supplied.
+
+Users can link a phone from the console notification bell. Enrollment requires an E.164 number and a one-time SMS code. Set `GREENOPS_SMS_ENABLED=true`, use the AWS credential chain with permission to call SNS `Publish`, and meet AWS SNS SMS origination/destination requirements. Verified numbers receive SPIRE attestation failure and operations alerts. Phone links and the notification history currently use bounded in-memory storage, matching the current in-memory account store, and are lost when the backend restarts; use a durable account/notification store before production rollout.
+
+There is no Docker daemon or CI pipeline monitor configured in this repository. A trusted deployment/CI health monitor can post an event to `POST /api/v1/operations/events` with `X-GreenOps-Operations-Key` set to a secret of at least 32 bytes (`GREENOPS_OPERATIONS_INGEST_KEY`), plus `userEmail`, `source` (`PIPELINE`, `DOCKER`, or `CI`), `severity` (`WARN`, `ERROR`, or `CRITICAL`), and a sanitized `summary`. This hook records the account notification and sends SMS if a verified number is linked. Do not expose the ingest key to browser code; rotate it if exposed.
 
 ## Validate
 

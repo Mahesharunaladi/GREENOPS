@@ -8,6 +8,7 @@ import java.time.Instant;
 import java.util.Base64;
 import java.util.HexFormat;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import javax.crypto.Mac;
 import javax.crypto.SecretKeyFactory;
@@ -130,6 +131,12 @@ public final class EmailAuthService {
             return false;
         }
         return true;
+    }
+
+    public Optional<String> emailForValidSession(String sessionToken) {
+        if (!hasValidSession(sessionToken)) return Optional.empty();
+        Session session = sessions.get(sessionToken);
+        return session == null ? Optional.empty() : Optional.of(session.email());
     }
 
     public void logout(String sessionToken) {
