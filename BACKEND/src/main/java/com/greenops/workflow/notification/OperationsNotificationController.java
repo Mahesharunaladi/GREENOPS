@@ -25,7 +25,8 @@ import org.springframework.web.server.ResponseStatusException;
 /** User-facing notification history and authenticated CI/container event ingestion. */
 @RestController
 @Validated
-public final class OperationsNotificationController {
+@RequestMapping("/api/v1")
+public class OperationsNotificationController {
     private static final String SESSION_COOKIE = "greenops_session";
     private final SecurityNotificationService notifications;
     private final EmailAuthService auth;
@@ -38,7 +39,7 @@ public final class OperationsNotificationController {
         this.ingestKey = ingestKey.getBytes(StandardCharsets.UTF_8);
     }
 
-    @GetMapping("/api/v1/notifications")
+    @GetMapping("/notifications")
     public List<SecurityNotificationService.SecurityNotification> recent(HttpServletRequest request,
             @RequestParam(defaultValue = "20") int limit) {
         String session = request.getCookies() == null ? null : java.util.Arrays.stream(request.getCookies())
@@ -47,7 +48,7 @@ public final class OperationsNotificationController {
         return notifications.recentFor(email, limit);
     }
 
-    @PostMapping("/api/v1/operations/events")
+    @PostMapping("/operations/events")
     public reactor.core.publisher.Mono<SecurityNotificationService.SecurityNotification> ingest(
             @Valid @RequestBody OperationsEventRequest event,
             @RequestHeader(name = "X-GreenOps-Operations-Key", required = false) String suppliedKey) {

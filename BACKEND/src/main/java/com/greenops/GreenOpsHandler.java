@@ -11,6 +11,7 @@ import com.greenops.scrapper.service.SlackNotifier;
 import com.greenops.workflow.cost.ResourceScanner;
 import com.greenops.workflow.identity.RiskEvaluationResult;
 import com.greenops.workflow.identity.ZeroTrustAgent;
+import com.greenops.workflow.notification.SecurityNotificationService;
 import com.greenops.workflow.remediation.ActionExecutor;
 import com.greenops.workflow.remediation.ActionExecutor.ActionExecutionResult;
 import com.greenops.workflow.remediation.IamSessionRevoker;
@@ -32,6 +33,7 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
+import java.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.builder.SpringApplicationBuilder;
@@ -101,6 +103,25 @@ public final class GreenOpsHandler implements RequestHandler<Map<String, Object>
         RiskEvaluationResult identityEvaluation = zeroTrustAgent.evaluateIdentityRisk(telemetryEvent);
         CompositeRiskScore compositeRiskScore =
                 riskScoreCalculator.calculateRiskScore(scanResult, securityAssessment, identityEvaluation);
+
+        if (identityEvaluation.decision() != RiskEvaluationResult.AgentDecision.SEAMLESS_REVERIFY
+                || securityAssessment.threatLevel() == SecurityThreatAssessment.ThreatLevel.HIGH
+                || securityAssessment.threatLevel() == SecurityThreatAssessment.ThreatLevel.CRITICAL) {
+            String severity = securityAssessment.threatLevel() == SecurityThreatAssessment.ThreatLevel.CRITICAL
+                    || identityEvaluation.decision() == RiskEvaluationResult.AgentDecision.REVOKE_SESSION
+                    ? "CRITICAL" : "WARN";
+            try {
+                spring.getBean(SecurityNotificationService.class)
+                        .notifyUser(telemetryEvent.tokenContext().subject(), "IDENTITY_ANOMALY", severity,
+                                "Identity risk decision=" + identityEvaluation.action()
+                                        + "; security threat=" + securityAssessment.threatLevel()
+                                        + "; event=" + telemetryEvent.eventId())
+                        .block(Duration.ofSeconds(3));
+            } catch (RuntimeException notificationFailure) {
+                log.warn("Identity anomaly notification failed for event {}: {}", telemetryEvent.eventId(),
+                        notificationFailure.getClass().getSimpleName());
+            }
+        }
 
         Optional<ActionExecutionResult> actionExecutionResult = Optional.empty();
         if (scanResult.idleResources() > 0) {

@@ -43,6 +43,12 @@ public final class UserPhoneAlertService {
 
     public boolean isEnabled() { return enabled; }
 
+    public java.util.Optional<String> verifiedPhoneNumber(String email) {
+        if (email == null || email.isBlank()) return java.util.Optional.empty();
+        Contact contact = contacts.get(normalizeEmail(email));
+        return contact != null && contact.verified() ? java.util.Optional.of(contact.phoneNumber()) : java.util.Optional.empty();
+    }
+
     public PhoneStatus status(String email) {
         Contact contact = contacts.get(normalizeEmail(email));
         return new PhoneStatus(enabled, contact != null && contact.verified(), contact == null ? "" : mask(contact.phoneNumber()));
@@ -88,7 +94,7 @@ public final class UserPhoneAlertService {
         }
         challenges.remove(account, challenge);
         contacts.put(account, new Contact(challenge.phoneNumber(), true));
-        log.info("Verified alert phone number linked to account={}", account);
+        log.info("Verified alert phone number linked to accountRef={}", accountRef(account));
         return Mono.just(status(account));
     }
 
@@ -98,9 +104,9 @@ public final class UserPhoneAlertService {
         if (contact == null || !contact.verified()) return Mono.empty();
         String message = "GreenOps alert: " + bound(title, 100) + ". " + bound(detail, 260);
         return publish(contact.phoneNumber(), message)
-                .doOnSuccess(ignored -> log.info("Security SMS notification delivered: account={}, alert={}", normalizeEmail(userIdOrEmail), bound(title, 80)))
+                .doOnSuccess(ignored -> log.info("Security SMS notification delivered: accountRef={}, alert={}", accountRef(normalizeEmail(userIdOrEmail)), bound(title, 80)))
                 .onErrorResume(error -> {
-                    log.error("Security SMS notification delivery failed: account={}, errorType={}", normalizeEmail(userIdOrEmail), error.getClass().getSimpleName());
+                    log.error("Security SMS notification delivery failed: accountRef={}, errorType={}", accountRef(normalizeEmail(userIdOrEmail)), error.getClass().getSimpleName());
                     return Mono.empty();
                 });
     }
@@ -122,6 +128,14 @@ public final class UserPhoneAlertService {
     }
 
     private static String normalizeEmail(String email) { return email.trim().toLowerCase(Locale.ROOT); }
+    private static String accountRef(String email) {
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256").digest(email.getBytes(StandardCharsets.UTF_8));
+            return java.util.HexFormat.of().formatHex(digest, 0, 6);
+        } catch (Exception failure) {
+            return "unavailable";
+        }
+    }
     private static String bound(String value, int limit) {
         if (value == null) return "";
         String safe = value.replaceAll("[\\r\\n\\p{Cntrl}]", " ").trim();

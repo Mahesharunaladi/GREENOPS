@@ -1,6 +1,6 @@
 package com.greenops.workflow.notification;
 
-import com.greenops.scrapper.auth.UserPhoneAlertService;
+import com.greenops.model.SystemIncidentEvent;
 import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
@@ -17,10 +17,10 @@ import reactor.core.publisher.Mono;
 public final class SecurityNotificationService {
     private static final Logger log = LoggerFactory.getLogger(SecurityNotificationService.class);
     private static final int MAX_PER_ACCOUNT = 100;
-    private final UserPhoneAlertService phoneAlerts;
+    private final SmsNotificationService smsNotifications;
     private final ConcurrentHashMap<String, ConcurrentLinkedDeque<SecurityNotification>> notifications = new ConcurrentHashMap<>();
 
-    public SecurityNotificationService(UserPhoneAlertService phoneAlerts) { this.phoneAlerts = phoneAlerts; }
+    public SecurityNotificationService(SmsNotificationService smsNotifications) { this.smsNotifications = smsNotifications; }
 
     public Mono<SecurityNotification> notifyUser(String userIdOrEmail, String source, String severity, String summary) {
         if (userIdOrEmail == null || !userIdOrEmail.contains("@")) {
@@ -30,10 +30,31 @@ public final class SecurityNotificationService {
         String email = userIdOrEmail.trim().toLowerCase(Locale.ROOT);
         SecurityNotification notification = new SecurityNotification(UUID.randomUUID().toString(), email,
                 bound(source, 32), bound(severity, 16), bound(summary, 512), Instant.now());
+        String eventType = notification.source().contains("SPIRE") ? "SPIRE_REVOCATION"
+                : notification.source().contains("DOCKER") ? "DOCKER_CONTAINER_CRASH"
+                : notification.source().contains("PIPELINE") || notification.source().equals("CI") ? "PIPELINE_FAILURE"
+                : "BIOMETRIC_ANOMALY";
+        String mappedSeverity = notification.severity().equals("CRITICAL") ? "CRITICAL"
+                : notification.severity().equals("INFO") ? "INFO" : "WARN";
+        SystemIncidentEvent incident = new SystemIncidentEvent(notification.eventId(), eventType, mappedSeverity,
+                notification.summary(), notification.occurredAt());
+        return dispatchAndRecord(email, notification, incident);
+    }
+
+    public Mono<SecurityNotification> notifyIncident(String userIdOrEmail, SystemIncidentEvent incident) {
+        if (userIdOrEmail == null || !userIdOrEmail.contains("@")) return Mono.empty();
+        String email = userIdOrEmail.trim().toLowerCase(Locale.ROOT);
+        SecurityNotification notification = new SecurityNotification(incident.incidentId(), email,
+                incident.eventType(), incident.severity(), incident.details(), incident.timestamp());
+        return dispatchAndRecord(email, notification, incident);
+    }
+
+    private Mono<SecurityNotification> dispatchAndRecord(String email, SecurityNotification notification,
+            SystemIncidentEvent incident) {
         ConcurrentLinkedDeque<SecurityNotification> accountEvents = notifications.computeIfAbsent(email, ignored -> new ConcurrentLinkedDeque<>());
         accountEvents.addFirst(notification);
         while (accountEvents.size() > MAX_PER_ACCOUNT) accountEvents.pollLast();
-        return phoneAlerts.notifyUser(email, notification.severity() + " " + notification.source(), notification.summary())
+        return smsNotifications.dispatchIncidentAlert(email, incident)
                 .onErrorResume(error -> {
                     log.warn("Phone alert dispatch failed for security event {}, errorType={}", notification.eventId(), error.getClass().getSimpleName());
                     return Mono.empty();

@@ -80,3 +80,5 @@ greenops:
   notifications:
     sms-enabled: ${GREENOPS_SMS_ENABLED:false}
     operations-ingest-key: ${GREENOPS_OPERATIONS_INGEST_KEY:}
+    on-call-user-id: ${GREENOPS_NOTIFICATION_ON_CALL_USER:}
+    action-url: ${GREENOPS_NOTIFICATION_ACTION_URL:}
