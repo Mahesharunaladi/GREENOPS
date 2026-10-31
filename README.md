@@ -67,6 +67,10 @@ Configure `GREENOPS_ADVANCED_THREAT_TABLE` as a DynamoDB table with partition ke
 
 Predictive TTC requires a trusted `UserSessionContext` from the authenticated server pipeline and an application-provided `PredictiveRiskSignalProvider`. The default provider is intentionally disabled; the endpoint returns HTTP 503 until trusted network drift, hardware-attestation delta, and biometric variance velocity signals are supplied. Its score is a transparent heuristic estimate, not a trained prediction. The controller returns reactive `Mono`/`Flux` responses backed by AWS async SDK calls; the existing application bootstraps the servlet stack, so this feature does not switch the entire backend to a WebFlux server.
 
+### Local multi-user demo dataset
+
+The console has six browser-only demo profiles in `FRONTEND/apps/soc-dashboard/app/console/demoData.ts`: Alex Chen (`us-east-1`), Priya Nair (`ap-south-1`), Mateo Silva (`eu-west-1`), Amara Okafor (`eu-central-1`), Noah Williams (`us-west-2`), and Mei Tan (`ap-southeast-1`). Select a region from the console header to switch the persona and its synthetic identity, risk, FinOps, swarm, and security-tier values. The overview lists all six. These are not registered backend accounts, AWS resources, or telemetry; the demo IPs come from reserved TEST-NET ranges. Enterprise and Advanced Security controls remain live backend calls and are not populated with these fixtures.
+
 ## Validate
 
 ```bash
